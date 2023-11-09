@@ -1,0 +1,24 @@
+```{r}
+load('SepsisR01_UCSFDeIDCDW_2023-11-09.RData')
+```
+
+```{r}
+resp <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Resp' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  mutate(NEWS_RESP = ifelse(NumericValue <= 8,
+                            3,
+                            ifelse(NumericValue <= 11,
+                                   1,
+                                   ifelse(NumericValue <= 20,
+                                          0,
+                                          ifelse(NumericValue <= 24,
+                                                 2,
+                                                 ifelse(NumericValue >= 25,
+                                                        3,
+                                                        999))))))
+
+resp %>% ungroup %>% count(NEWS_RESP)
+```
+
