@@ -2,7 +2,7 @@
 load('SepsisR01_UCSFDeIDCDW_2023-11-09.RData')
 ```
 
-```{r}
+```{r Respiratory Rate}
 resp <- flowsheet %>%
   filter(FlowsheetRowDisplayName == 'Resp' & !is.na(NumericValue) & Accepted == 1) %>%
   group_by(EncounterKey) %>%
@@ -22,3 +22,32 @@ resp <- flowsheet %>%
 resp %>% ungroup %>% count(NEWS_RESP)
 ```
 
+
+```{r Room Air vs Supplemental}
+```
+
+```{r SpO2}
+```
+
+```{r Temperature}
+
+# MPOG says temperatures outside of 32-40 are considered invalid
+temp <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Temp' & !is.na(NumericValue) & Accepted == 1) %>%
+  mutate(temp = ifelse(NumericValue > 45, (NumericValue - 32) * 5/9, NumericValue)) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  mutate(NEWS_TEMP = ifelse(NumericValue <= 8,
+                            3,
+                            ifelse(NumericValue <= 11,
+                                   1,
+                                   ifelse(NumericValue <= 20,
+                                          0,
+                                          ifelse(NumericValue <= 24,
+                                                 2,
+                                                 ifelse(NumericValue >= 25,
+                                                        3,
+                                                        999))))))
+
+resp %>% ungroup %>% count(NEWS_RESP)
+```
