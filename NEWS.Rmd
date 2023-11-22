@@ -1,11 +1,21 @@
 ```{r}
+nftools::nf_library(c(
+  'lubridate',
+  'tidyverse'
+))
+# Threshold is 5
 load('SepsisR01_UCSFDeIDCDW_2023-11-09.RData')
+
+# Sort by timestamp
+flowsheet <- flowsheet %>%
+  mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)))
 ```
 
 ```{r Respiratory Rate}
 resp <- flowsheet %>%
   filter(FlowsheetRowDisplayName == 'Resp' & !is.na(NumericValue) & Accepted == 1) %>%
   group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
   slice(1) %>%
   mutate(NEWS_RESP = ifelse(NumericValue <= 8,
                             3,
@@ -22,32 +32,183 @@ resp <- flowsheet %>%
 resp %>% ungroup %>% count(NEWS_RESP)
 ```
 
+```{r SpO2 Assuming No Respiratory Failure}
+spo2 <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'SpO2' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_SPO2= ifelse(NumericValue <= 91,
+                            3,
+                            ifelse(NumericValue <= 93,
+                                   2,
+                                   ifelse(NumericValue <= 95,
+                                          1,
+                                          ifelse(NumericValue > 95,
+                                                 0,
+                                                 999)))))
 
-```{r Room Air vs Supplemental}
+spo2 %>% ungroup %>% count(NEWS_SPO2)
+
+spo2_timestamps <- spo2 %>%
+  select(EncounterKey, DateKeyValue, TimeOfDayKeyValue) %>%
+  unite(DateTimeCombined, DateKeyValue, TimeOfDayKeyValue, sep = " ") %>%
+  mutate(timestamp = ymd_hm(DateTimeCombined),
+         one_hour_later = timestamp + minutes(60))
 ```
 
-```{r SpO2}
+```{r Room Air vs Supplemental}
+# FiO2 (%)
+# FiO2 (%) - O2 Device #2
+
+suppox <- flowsheet %>% 
+  filter(FlowsheetRowDisplayName == 'FiO2 (%)' & !is.na(NumericValue) & Accepted == 1 & NumericValue > 21) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp)%>%
+  slice(1)
+
+suppox <- suppox %>%
+  merge(spo2_timestamps %>% select(EncounterKey, one_hour_later), by='EncounterKey', all=T) %>%
+  mutate(NEWS_SUPPOX = ifelse((!is.na(timestamp) & !is.na(one_hour_later) & timestamp <= one_hour_later), 2, 0))
+```
+
+```{r SpO2 Assuming Respiratory Failure, eval=FALSE, include=FALSE}
+spo2 <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'SpO2' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_SPO2= ifelse(NumericValue <= 83,
+                            3,
+                            ifelse(NumericValue <= 85,
+                                   2,
+                                   ifelse(NumericValue <= 87,
+                                          1,
+                                          ifelse(NumericValue <= 39.0,
+                                                 1,
+                                                 ifelse(NumericValue > 39,
+                                                        2,
+                                                        999))))))
+
+temp %>% ungroup %>% count(NEWS_TEMP)
+
 ```
 
 ```{r Temperature}
-
-# MPOG says temperatures outside of 32-40 are considered invalid
 temp <- flowsheet %>%
   filter(FlowsheetRowDisplayName == 'Temp' & !is.na(NumericValue) & Accepted == 1) %>%
   mutate(temp = ifelse(NumericValue > 45, (NumericValue - 32) * 5/9, NumericValue)) %>%
+  filter(temp >= 32 & temp <= 45) %>%
   group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
   slice(1) %>%
-  mutate(NEWS_TEMP = ifelse(NumericValue <= 8,
+  mutate(NEWS_TEMP = ifelse(temp <= 35.0,
                             3,
-                            ifelse(NumericValue <= 11,
+                            ifelse(temp <= 36.0,
                                    1,
-                                   ifelse(NumericValue <= 20,
+                                   ifelse(temp <= 38.0,
                                           0,
-                                          ifelse(NumericValue <= 24,
-                                                 2,
-                                                 ifelse(NumericValue >= 25,
-                                                        3,
+                                          ifelse(temp <= 39.0,
+                                                 1,
+                                                 ifelse(temp > 39,
+                                                        2,
                                                         999))))))
 
-resp %>% ungroup %>% count(NEWS_RESP)
+temp %>% ungroup %>% count(NEWS_TEMP)
+```
+```{r Systolic BP}
+bp <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'BP' & !is.na(Value) & Value != "" & Accepted == 1) %>%
+  mutate(systolic = as.numeric(str_extract(Value, "^[0-9]+")),
+         diastolic = as.numeric(str_extract(Value, "(?<=/)[0-9]+"))) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_BP = ifelse(systolic <= 90,
+                            3,
+                            ifelse(systolic <= 100,
+                                   2,
+                                   ifelse(systolic <= 110,
+                                          1,
+                                          ifelse(systolic <= 219,
+                                                 0,
+                                                 ifelse(systolic > 219,
+                                                        3,
+                                                        999))))))
+bp %>% ungroup %>% count(NEWS_BP)
+```
+
+
+```{r Pulse}
+pulse <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Pulse' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_PULSE = ifelse(NumericValue <= 40,
+                            3,
+                            ifelse(NumericValue <= 50,
+                                   1,
+                                   ifelse(NumericValue <= 90,
+                                          0,
+                                          ifelse(NumericValue <= 110,
+                                                 1,
+                                                 ifelse(NumericValue <= 130,
+                                                        2,
+                                                        ifelse(NumericValue > 219,
+                                                               3,
+                                                               999)))))))
+bp %>% ungroup %>% count(NEWS_BP)
+```
+
+```{r Consciousness}
+
+# *The patient has new-onset confusion, disorientation and/or agitation, where previously their mental state was normal – this may be subtle. The patient may respond to questions coherently, but there is some confusion, disorientation and/or agitation. This would score 3 or 4 on the GCS (rather than the normal 5 for verbal response), and scores 3 on the NEWS system.
+# https://www.rcplondon.ac.uk/projects/outputs/national-early-warning-score-news-2
+gcs_e <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Best Eye Response' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_CONSCIOUSNESS_E = ifelse(NumericValue < 4, 3, 0))
+
+gcs_v <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Best Verbal Response' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_CONSCIOUSNESS_V = ifelse(NumericValue < 5, 3, 0))
+
+gcs_m <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Best Motor Response (upper extremities)' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(NEWS_CONSCIOUSNESS_M = ifelse(NumericValue < 6, 3, 0))
+  
+consciousness <- gcs_e %>% select(EncounterKey, NEWS_CONSCIOUSNESS_E) %>%
+  merge(gcs_v %>% select(EncounterKey, NEWS_CONSCIOUSNESS_V), all = T, by = 'EncounterKey') %>%
+  merge(gcs_m %>% select(EncounterKey, NEWS_CONSCIOUSNESS_M), all = T, by = 'EncounterKey') %>%
+  rowwise() %>%
+  mutate(NEWS_CONSCIOUSNESS = max(NEWS_CONSCIOUSNESS_E, NEWS_CONSCIOUSNESS_V, NEWS_CONSCIOUSNESS_M, na.rm = TRUE))
+
+  
+    
+  filter(FlowsheetRowDisplayName == 'Pulse' & !is.na(NumericValue) & Accepted == 1) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  mutate(NEWS_PULSE = ifelse(NumericValue <= 40,
+                            3,
+                            ifelse(NumericValue <= 50,
+                                   1,
+                                   ifelse(NumericValue <= 90,
+                                          0,
+                                          ifelse(NumericValue <= 110,
+                                                 1,
+                                                 ifelse(NumericValue <= 130,
+                                                        2,
+                                                        ifelse(NumericValue > 219,
+                                                               3,
+                                                               999)))))))
+consciousness %>% ungroup %>% count(NEWS_CONSCIOUSNESS)
 ```
