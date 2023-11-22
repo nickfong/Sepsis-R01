@@ -51,10 +51,8 @@ spo2 <- flowsheet %>%
 spo2 %>% ungroup %>% count(NEWS_SPO2)
 
 spo2_timestamps <- spo2 %>%
-  select(EncounterKey, DateKeyValue, TimeOfDayKeyValue) %>%
-  unite(DateTimeCombined, DateKeyValue, TimeOfDayKeyValue, sep = " ") %>%
-  mutate(timestamp = ymd_hm(DateTimeCombined),
-         one_hour_later = timestamp + minutes(60))
+  select(EncounterKey, timestamp) %>%
+  mutate(one_hour_later = timestamp + minutes(60))
 ```
 
 ```{r Room Air vs Supplemental}
@@ -67,7 +65,15 @@ suppox <- flowsheet %>%
   arrange(timestamp)%>%
   slice(1)
 
+suppox_2 <- flowsheet %>% 
+  filter(FlowsheetRowDisplayName == 'FiO2 (%) - O2 Device #2' & !is.na(NumericValue) & Accepted == 1 & NumericValue > 21) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp)%>%
+  slice(1)
+
 suppox <- suppox %>%
+  merge(suppox_2 %>% select(EncounterKey, timestamp), by='EncounterKey', all=T) %>%
+  mutate(timestamp = ifelse(!is.na(timestamp.x), timestamp.x, timestamp.y)) %>%
   merge(spo2_timestamps %>% select(EncounterKey, one_hour_later), by='EncounterKey', all=T) %>%
   mutate(NEWS_SUPPOX = ifelse((!is.na(timestamp) & !is.na(one_hour_later) & timestamp <= one_hour_later), 2, 0))
 ```
@@ -90,15 +96,15 @@ spo2 <- flowsheet %>%
                                                         2,
                                                         999))))))
 
-temp %>% ungroup %>% count(NEWS_TEMP)
+spo2 %>% ungroup %>% count(NEWS_SPO2)
 
 ```
 
 ```{r Temperature}
 temp <- flowsheet %>%
   filter(FlowsheetRowDisplayName == 'Temp' & !is.na(NumericValue) & Accepted == 1) %>%
-  mutate(temp = ifelse(NumericValue > 45, (NumericValue - 32) * 5/9, NumericValue)) %>%
-  filter(temp >= 32 & temp <= 45) %>%
+  mutate(temp = ifelse(NumericValue > 42, (NumericValue - 32) * 5/9, NumericValue)) %>%
+  filter(temp >= 32 & temp <= 42) %>%
   group_by(EncounterKey) %>%
   arrange(timestamp) %>%
   slice(1) %>%
@@ -155,10 +161,10 @@ pulse <- flowsheet %>%
                                                  1,
                                                  ifelse(NumericValue <= 130,
                                                         2,
-                                                        ifelse(NumericValue > 219,
+                                                        ifelse(NumericValue > 130,
                                                                3,
                                                                999)))))))
-bp %>% ungroup %>% count(NEWS_BP)
+pulse %>% ungroup %>% count(NEWS_PULSE)
 ```
 
 ```{r Consciousness}
@@ -193,22 +199,18 @@ consciousness <- gcs_e %>% select(EncounterKey, NEWS_CONSCIOUSNESS_E) %>%
   mutate(NEWS_CONSCIOUSNESS = max(NEWS_CONSCIOUSNESS_E, NEWS_CONSCIOUSNESS_V, NEWS_CONSCIOUSNESS_M, na.rm = TRUE))
 
   
-    
-  filter(FlowsheetRowDisplayName == 'Pulse' & !is.na(NumericValue) & Accepted == 1) %>%
-  group_by(EncounterKey) %>%
-  slice(1) %>%
-  mutate(NEWS_PULSE = ifelse(NumericValue <= 40,
-                            3,
-                            ifelse(NumericValue <= 50,
-                                   1,
-                                   ifelse(NumericValue <= 90,
-                                          0,
-                                          ifelse(NumericValue <= 110,
-                                                 1,
-                                                 ifelse(NumericValue <= 130,
-                                                        2,
-                                                        ifelse(NumericValue > 219,
-                                                               3,
-                                                               999)))))))
 consciousness %>% ungroup %>% count(NEWS_CONSCIOUSNESS)
 ```
+```{r}
+news <- resp %>% select(EncounterKey, contains('NEWS')) %>%
+  merge(spo2 %>% select(EncounterKey, contains('NEWS')), on='EncounterKey', all=T) %>%
+  merge(suppox %>% select(EncounterKey, contains('NEWS')), on='EncounterKey', all=T) %>%
+  merge(temp %>% select(EncounterKey, contains('NEWS')), on='EncounterKey', all=T) %>%
+  merge(bp %>% select(EncounterKey, contains('NEWS')), on='EncounterKey', all=T) %>%
+  merge(pulse %>% select(EncounterKey, contains('NEWS')), on='EncounterKey', all=T) %>%
+  merge(consciousness %>% select(EncounterKey, NEWS_CONSCIOUSNESS), on='EncounterKey', all=T) %>%
+  mutate(NEWS_2_SCORE = rowSums(select(., -EncounterKey), na.rm = TRUE))
+
+write.csv(news, file='news2_scores.csv')
+```
+
