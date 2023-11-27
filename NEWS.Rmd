@@ -4,7 +4,7 @@ nftools::nf_library(c(
   'tidyverse'
 ))
 # Threshold is 5
-load('SepsisR01_UCSFDeIDCDW_2023-11-09.RData')
+load('SepsisR01_UCSFDeIDCDW_2023-11-27.RData')
 
 # Sort by timestamp
 flowsheet <- flowsheet %>%
@@ -84,20 +84,27 @@ spo2 <- flowsheet %>%
   group_by(EncounterKey) %>%
   arrange(timestamp) %>%
   slice(1) %>%
+  ungroup() %>%
+  merge(suppox %>% select(EncounterKey, NEWS_SUPPOX), by='EncounterKey') %>%
   mutate(NEWS_SPO2= ifelse(NumericValue <= 83,
                             3,
                             ifelse(NumericValue <= 85,
                                    2,
                                    ifelse(NumericValue <= 87,
                                           1,
-                                          ifelse(NumericValue <= 39.0,
-                                                 1,
-                                                 ifelse(NumericValue > 39,
-                                                        2,
-                                                        999))))))
+                                          ifelse(NumericValue <= 92,
+                                                 0,
+                                                 ifelse(NEWS_SUPPOX == 0,
+                                                        0,
+                                                        ifelse(NumericValue <= 94,
+                                                               1,
+                                                               ifelse(NumericValue <= 96,
+                                                                      2,
+                                                                      ifelse(NumericValue >= 97,
+                                                                             3,
+                                                                             999)))))))))
 
 spo2 %>% ungroup %>% count(NEWS_SPO2)
-
 ```
 
 ```{r Temperature}
