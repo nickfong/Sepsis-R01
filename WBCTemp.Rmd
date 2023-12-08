@@ -1,0 +1,60 @@
+```{r}
+nftools::nf_library(c(
+  'lubridate',
+  'tidyverse'
+))
+# Threshold is 5
+load('SepsisR01_UCSFDeIDCDW_2023-12-04.RData')
+
+# Sort by timestamp
+flowsheet <- flowsheet %>%
+  mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)))
+# 
+# Sort by collection time, not result time
+labs <- labs %>%
+  mutate(timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue)))
+```
+```{r Temperature}
+temp <- flowsheet %>%
+  filter(FlowsheetRowDisplayName == 'Temp' & !is.na(NumericValue) & Accepted == 1) %>%
+  mutate(temp = ifelse(NumericValue > 42, (NumericValue - 32) * 5/9, NumericValue)) %>%
+  filter(temp >= 32 & temp <= 42) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(SIRS_TEMP = ifelse(temp > 38 | temp < 36, 1, 0))
+
+temp %>% ungroup %>% count(SIRS_TEMP)
+```
+
+```{r WBC }
+wbc <- labs %>%
+  mutate(
+    parsed_value = parse_number(Value),
+    is_na_coercion = is.na(parsed_value)
+  )
+print(wbc %>% ungroup %>% filter(is_na_coercion) %>% count(Value))
+
+wbc <- wbc %>%
+  mutate(NumericValue = as.numeric(Value)) %>%
+  filter(ComponentName== 'WBC Count' & !is.na(NumericValue)) %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  mutate(SIRS_WBC = ifelse(NumericValue > 12 | NumericValue < 4, 1, 0))
+
+
+wbc %>% ungroup %>% count(SIRS_WBC)
+```
+
+```{r}
+df <- temp %>% select(EncounterKey, SIRS_TEMP) %>%
+  merge(wbc %>% select(EncounterKey, SIRS_WBC), on='EncounterKey', all=T) %>%
+  mutate(
+    summation = rowSums(select(., -EncounterKey), na.rm = TRUE),
+    include = ifelse(summation > 0, T, F)
+    )
+
+write.csv(df, file='inclusion.csv')
+```
+
