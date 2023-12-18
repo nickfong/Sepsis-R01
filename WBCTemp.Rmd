@@ -1,13 +1,14 @@
 ```{r}
 nftools::nf_library(c(
   'lubridate',
-  'tidyverse'
+  'tidyverse',
+  'data.table'
 ))
 # Threshold is 5
 load('SepsisR01_UCSFDeIDCDW_2023-12-04.RData')
 
 # Sort by timestamp
-flowsheet <- flowsheet %>%
+# flowsheet <- flowsheet %>%
   mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)))
 # 
 # Sort by collection time, not result time
@@ -48,13 +49,65 @@ wbc %>% ungroup %>% count(SIRS_WBC)
 ```
 
 ```{r}
-df <- temp %>% select(EncounterKey, SIRS_TEMP) %>%
+df <- temp %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_TEMP) %>%
   merge(wbc %>% select(EncounterKey, SIRS_WBC), on='EncounterKey', all=T) %>%
   mutate(
-    summation = rowSums(select(., -EncounterKey), na.rm = TRUE),
+    summation = rowSums(select(., -contains('Key')), na.rm = TRUE),
     include = ifelse(summation > 0, T, F)
     )
 
 write.csv(df, file='inclusion.csv')
+```
+
+```{r}
+base <- '~/Sepsis-R01/Data_Inc_2023-12-08/'
+
+dx <- fread(paste0(base, 'dx_enc_icd.csv'))
+death <- fread(paste0(base, 'death.csv'))
+ed <- fread(paste0(base, 'ed.csv'))
+assess <- fread(paste0(base, 'flowsheet_assess.csv'))
+resp <- fread(paste0(base, 'flowsheet_resp.csv'))
+hosp <- fread(paste0(base, 'hosp_adm.csv'))
+icu_reg <- fread(paste0(base, 'icu_reg.csv'))
+enc_keys <- fread(paste0(base, 'enc_keys.csv'))
+insurance <- fread(paste0(base, 'insurance.csv'))
+labs <- fread(paste0(base, 'labs.csv'))
+med_ab <- fread(paste0(base, 'med_ab.csv'))
+pt <- fread(paste0(base, 'pt.csv'))
+pt_keys <- fread(paste0(base, 'pt_keys.csv'))
+```
+
+```{r}
+pt_trim <- pt %>%
+  select(
+    'Status',
+    'MaritalStatus',
+    'Religion',
+    'SmokingStatus',
+    'PrimaryFinancialClass',
+    'HighestLevelOfEducation',
+    'SexAssignedAtBirth',
+    'GenderIdentity',
+    'SexualOrientation',
+    'UCSFDerivedRaceEthnicity_X'
+  )
+
+tabledf <- df %>%
+  merge(pt_trim, on='PatientDurableKey', all.x = T)
+
+columns <- c(
+#    'Status',
+    'MaritalStatus',
+    'Religion',
+    'SmokingStatus',
+    'PrimaryFinancialClass',
+    'HighestLevelOfEducation',
+    'SexAssignedAtBirth',
+    'GenderIdentity',
+    'SexualOrientation',
+    'UCSFDerivedRaceEthnicity_X'
+)
+
+nftools::nf_table1(columns, include, tabledf, calculate_pvalue = F)
 ```
 
