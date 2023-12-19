@@ -9,7 +9,8 @@ load('SepsisR01_UCSFDeIDCDW_2023-12-04.RData')
 
 # Sort by timestamp
 flowsheet <- flowsheet %>%
-  mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)))
+  mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue))) %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey)
 # 
 # Sort by collection time, not result time
 labs <- labs %>%
@@ -50,8 +51,8 @@ wbc %>% ungroup %>% count(SIRS_WBC)
 
 ```{r}
 df <- flowsheet %>% select(PatientDurableKey, PatientKey, EncounterKey, timestamp) %>%
-  merge(temp %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_TEMP, timestamp), on='EncounterKey', all=T) %>%
-  merge(wbc %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_WBC, timestamp), on='EncounterKey', all=T) %>%
+  merge(temp %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_TEMP, timestamp), on='EncounterKey', all.x=T) %>%
+  merge(wbc %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_WBC, timestamp), on='EncounterKey', all.x=T) %>%
   mutate(
     summation = rowSums(select(., -contains('Key'), -timestamp), na.rm = TRUE),
     include = ifelse(summation > 0, T, F)
@@ -180,8 +181,16 @@ dx_trim <- dx %>%
     'icd_value'
   ) %>%
   mutate(
-    sepsis = ifelse(icd_value %in% icd_codes, T, F),
-    septic_shock = ifelse(icd_value %in% shock_icd_codes, T, F)
+    sepsis = ifelse(icd_value %in% icd_codes, 1, 0),
+    septic_shock = ifelse(icd_value %in% shock_icd_codes, 1, 0)
+  ) %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey) %>%
+  group_by(EncounterKey) %>%
+  summarize(
+    PatientKey = first(PatientKey),
+    PatientDurableKey = first(PatientDurableKey),
+    sepsis = max(sepsis),
+    septic_shock = max(septic_shock)
   )
 
 pt_trim <- pt %>%
@@ -201,11 +210,12 @@ pt_trim <- pt %>%
     'SexualOrientation',
     'UCSFDerivedRaceEthnicity_X'
   ) %>%
+  distinct(.keep_all = TRUE) %>%
   as.data.frame
 
 tabledf <- df %>%
-  merge(pt_trim, on='PatientDurableKey', all.x = T) %>%
-  merge(dx_trim, on='PatientDurableKey', all.x = T) %>%
+  merge(dx_trim, on='EncounterKey', all.x = T) %>%
+  merge(pt_trim, on='PatientKey', all.x = T) %>%
   mutate(
     processed_birthdate = lubridate::ymd(BirthDate),
     age_days = as.numeric(difftime(timestamp, processed_birthdate, units='days')),
