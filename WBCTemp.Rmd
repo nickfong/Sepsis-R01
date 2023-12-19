@@ -8,7 +8,7 @@ nftools::nf_library(c(
 load('SepsisR01_UCSFDeIDCDW_2023-12-04.RData')
 
 # Sort by timestamp
-# flowsheet <- flowsheet %>%
+flowsheet <- flowsheet %>%
   mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)))
 # 
 # Sort by collection time, not result time
@@ -49,10 +49,11 @@ wbc %>% ungroup %>% count(SIRS_WBC)
 ```
 
 ```{r}
-df <- temp %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_TEMP) %>%
-  merge(wbc %>% select(EncounterKey, SIRS_WBC), on='EncounterKey', all=T) %>%
+df <- flowsheet %>% select(PatientDurableKey, PatientKey, EncounterKey, timestamp) %>%
+  merge(temp %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_TEMP, timestamp), on='EncounterKey', all=T) %>%
+  merge(wbc %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_WBC, timestamp), on='EncounterKey', all=T) %>%
   mutate(
-    summation = rowSums(select(., -contains('Key')), na.rm = TRUE),
+    summation = rowSums(select(., -contains('Key'), -timestamp), na.rm = TRUE),
     include = ifelse(summation > 0, T, F)
     )
 
@@ -60,7 +61,7 @@ write.csv(df, file='inclusion.csv')
 ```
 
 ```{r}
-base <- '~/Sepsis-R01/Data_Inc_2023-12-08/'
+base <- '~/src/Sepsis-R01/Data_Inc_2023-12-08/'
 
 dx <- fread(paste0(base, 'dx_enc_icd.csv'))
 death <- fread(paste0(base, 'death.csv'))
@@ -73,13 +74,122 @@ enc_keys <- fread(paste0(base, 'enc_keys.csv'))
 insurance <- fread(paste0(base, 'insurance.csv'))
 labs <- fread(paste0(base, 'labs.csv'))
 med_ab <- fread(paste0(base, 'med_ab.csv'))
-pt <- fread(paste0(base, 'pt.csv'))
+pt <- fread(paste0(base, 'pt.csv')) %>%
+  mutate(
+    has_birthdate = ifelse(is.na(BirthDate), F, T)
+  )
 pt_keys <- fread(paste0(base, 'pt_keys.csv'))
+
+map_icd_to_category <- function(icd_code) {
+  # Extract the first character of the ICD-10 code
+  first_char <- substr(icd_code, 1, 1)
+
+  # Map ICD-10 codes to broader categories based on the first character
+  category <- switch(first_char,
+    A = "Infectious and Parasitic Diseases",
+    B = "Infectious and Parasitic Diseases",
+    C = "Neoplasms (Tumors)",
+    D = ifelse(grepl("^D[5-8]", icd_code), "Blood and Immune System Disorders", "Other"),
+    E = "Endocrine, Nutritional, and Metabolic Diseases",
+    F = "Mental and Behavioral Disorders",
+    G = "Diseases of the Nervous System",
+    H = "Diseases of the Eye and Adnexa",
+    I = "Diseases of the Circulatory System",
+    J = "Diseases of the Respiratory System",
+    K = "Diseases of the Digestive System",
+    L = "Diseases of the Skin and Subcutaneous Tissue",
+    M = "Diseases of the Musculoskeletal System and Connective Tissue",
+    N = "Diseases of the Genitourinary System",
+    O = "Pregnancy, Childbirth, and the Puerperium",
+    P = "Conditions Originating in the Perinatal Period",
+    Q = "Congenital Malformations, Deformations, and Chromosomal Abnormalities",
+    R = "Symptoms, Signs, and Abnormal Findings",
+    S = "Injury, Poisoning, and Other Consequences of External Causes",
+    T = "Injury, Poisoning, and Other Consequences of External Causes",
+    U = "Codes for Special Purposes",
+    Other = "Other"
+  )
+
+  return(category)
+}
+
+#dx <- dx %>%
+#  mutate(ICD_Category = map_icd_to_category(icd_value))
+
+```
+```{r Define Sepsis ICD Codes}
+icd_codes <- c(dx %>% 
+                 filter(grepl('sepsis|septic', icd_l3_name, ignore.case=T)) %>% 
+                 pull(icd_value) %>% 
+                 unique,
+               dx %>% 
+                 filter(grepl('sepsis|septic', icd_l4_name, ignore.case=T)) %>% 
+                 pull(icd_value) %>% 
+                 unique,
+               dx %>% 
+                 filter(grepl('sepsis|septic', icd_l5_name, ignore.case=T)) %>%
+                 pull(icd_value) %>% 
+                 unique,
+               dx %>% 
+                 filter(grepl('sepsis|septic', icd_l6_name, ignore.case=T)) %>%
+                 pull(icd_value) %>% 
+                 unique
+) %>% unique %>% sort
+
+shock_icd_codes <- c(
+  dx %>% 
+    filter(grepl('sepsis|septic', icd_l3_name, ignore.case=T) & 
+             grepl('shock', icd_l3_name, ignore.case=T) & 
+             !grepl('without', icd_l3_name, ignore.case=T)) %>% 
+    pull(icd_value) %>% 
+    unique,
+  dx %>% 
+    filter(grepl('sepsis|septic', icd_l4_name, ignore.case=T) & 
+             grepl('shock', icd_l4_name, ignore.case=T) & 
+             !grepl('without', icd_l4_name, ignore.case=T)) %>% 
+    pull(icd_value) %>% 
+    unique,
+  dx %>% 
+    filter(grepl('sepsis|septic', icd_l5_name, ignore.case=T) & 
+             grepl('shock', icd_l5_name, ignore.case=T) & 
+             !grepl('without', icd_l5_name, ignore.case=T)) %>% 
+    pull(icd_value) %>% 
+    unique,
+  dx %>% 
+    filter(grepl('sepsis|septic', icd_l6_name, ignore.case=T) & 
+             grepl('shock', icd_l6_name, ignore.case=T) & 
+             !grepl('without', icd_l6_name, ignore.case=T)) %>% 
+    pull(icd_value) %>% 
+    unique,
+  dx %>% 
+    filter(grepl('sepsis|septic', icd_l7_name, ignore.case=T) & 
+             grepl('shock', icd_l7_name, ignore.case=T) & 
+             !grepl('without', icd_l7_name, ignore.case=T)) %>% 
+    pull(icd_value) %>% 
+    unique
+) %>% unique %>% sort
 ```
 
+
 ```{r}
+dx_trim <- dx %>%
+  select(
+    'PatientKey',
+    'PatientDurableKey',
+    'EncounterKey',
+    'icd_value'
+  ) %>%
+  mutate(
+    sepsis = ifelse(icd_value %in% icd_codes, T, F),
+    septic_shock = ifelse(icd_value %in% shock_icd_codes, T, F)
+  )
+
 pt_trim <- pt %>%
   select(
+    'BirthDate',
+    'has_birthdate',
+    'PatientKey',
+    'PatientDurableKey',
     'Status',
     'MaritalStatus',
     'Religion',
@@ -90,24 +200,43 @@ pt_trim <- pt %>%
     'GenderIdentity',
     'SexualOrientation',
     'UCSFDerivedRaceEthnicity_X'
-  )
+  ) %>%
+  as.data.frame
 
 tabledf <- df %>%
-  merge(pt_trim, on='PatientDurableKey', all.x = T)
+  merge(pt_trim, on='PatientDurableKey', all.x = T) %>%
+  merge(dx_trim, on='PatientDurableKey', all.x = T) %>%
+  mutate(
+    processed_birthdate = lubridate::ymd(BirthDate),
+    age_days = as.numeric(difftime(timestamp, processed_birthdate, units='days')),
+    age = age_days/365.25
+  ) %>%
+  mutate_if(is.character, 
+    list(~ ifelse(grepl("^\\*|^$|^Missing$", .), NA, .))
+  )
 
 columns <- c(
 #    'Status',
+    'age',
+    'has_birthdate',
     'MaritalStatus',
     'Religion',
     'SmokingStatus',
     'PrimaryFinancialClass',
-    'HighestLevelOfEducation',
     'SexAssignedAtBirth',
     'GenderIdentity',
     'SexualOrientation',
-    'UCSFDerivedRaceEthnicity_X'
+    'UCSFDerivedRaceEthnicity_X',
+    'sepsis',
+    'septic_shock'
 )
 
-nftools::nf_table1(columns, include, tabledf, calculate_pvalue = F)
-```
+nftools::nf_table1(columns, 'include', tabledf, calculate_pvalue = F)
 
+tabledf$year <- tabledf$timestamp %>% year
+nftools::nf_table1(columns, 'year', tabledf, calculate_pvalue = F)
+```
+```{r Summary stats for R01 Writeup}
+# Number of visits per year
+tabledf %>% count(year) %>% pull(n) %>% summary
+```
