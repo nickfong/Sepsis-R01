@@ -5,7 +5,23 @@ nftools::nf_library(c(
   'data.table'
 ))
 
-load('SepsisR01_UCSFDeIDCDW_2023-12-04.RData')
+base <- '~/src/Sepsis-R01/Data_All_2023-12-21/'
+
+dx <- fread(paste0(base, 'dx_all.csv'))
+ed_keys <- fread(paste0(base, 'ed_keys.csv'))
+enc_dx <- fread(paste0(base, 'enc_dx.csv'))
+flowsheet <- fread(paste0(base, 'flowsheet.csv'))
+hosp_adm <- fread(paste0(base, 'hosp_adm.csv'))
+labs <- fread(paste0(base, 'labs.csv'))
+pt <- fread(paste0(base, 'pt.csv')) %>%
+  mutate(
+    has_birthdate = ifelse(is.na(BirthDate), F, T)
+  )
+durationdim <- fread(paste0('~/src/Sepsis-R01/', 'durationdim.csv')) %>% 
+  select(DurationKey, Years) %>%
+  rename(DurationAge=Years)
+ed <- fread(paste0(base, 'ed.csv')) %>%
+  merge(durationdim, by.x = 'AgeKey', by.y='DurationKey', all.x=T)
 
 # Sort by timestamp
 flowsheet <- flowsheet %>%
@@ -34,11 +50,12 @@ wbc <- wbc %>%
   group_by(EncounterKey) %>%
   arrange(timestamp) %>%
   slice(1) %>%
-  merge(ed %>% select(EncounterKey, ed_timestamp), on='EncounterKey', all.x=T) %>%
+  merge(ed %>% select(EncounterKey, ed_timestamp), by='EncounterKey', all.x=T) %>%
   mutate(
     TWO_HOURS = ifelse(difftime(timestamp, ed_timestamp, units = "hours") < 2, 1, 0),
     SIRS_WBC = ifelse(TWO_HOURS & (NumericValue > 12 | NumericValue < 4), 1, 0)
-  )
+  ) %>%
+  rename(wbc = NumericValue)
 
 wbc %>% ungroup %>% count(SIRS_WBC)
 ```
@@ -51,7 +68,11 @@ temp <- flowsheet %>%
   group_by(EncounterKey) %>%
   arrange(timestamp) %>%
   slice(1) %>%
-  mutate(SIRS_TEMP = ifelse(temp > 38 | temp < 36, 1, 0))
+  merge(ed %>% select(EncounterKey, ed_timestamp), by='EncounterKey', all.x=T) %>%
+  mutate(
+    TEMP_TWO_HOURS = ifelse(difftime(timestamp, ed_timestamp, units = "hours") < 2, 1, 0),
+    SIRS_TEMP = ifelse(TEMP_TWO_HOURS & (temp > 38 | temp < 36), 1, 0)
+  )
 
 temp %>% ungroup %>% count(SIRS_TEMP)
 ```
@@ -59,17 +80,18 @@ temp %>% ungroup %>% count(SIRS_TEMP)
 
 ```{r}
 df <- ed_keys %>%
-  merge(wbc %>% select(PatientDurableKey, PatientKey, EncounterKey, TWO_HOURS,SIRS_WBC), on='EncounterKey', all.x=T) %>%
-  merge(temp %>% select(PatientDurableKey, PatientKey, EncounterKey, SIRS_TEMP), on='EncounterKey', all.x=T) %>%
+  merge(wbc %>% select(PatientKey, EncounterKey, wbc, TWO_HOURS, SIRS_WBC), by='EncounterKey', all.x=T) %>%
+  merge(temp %>% select(PatientKey, EncounterKey, temp, SIRS_TEMP), by='EncounterKey', all.x=T) %>%
   mutate(
+    analyzed = ifelse(!is.na(wbc), T, ifelse(!is.na(temp), T, F)),
     summation = rowSums(select(., contains('SIRS')), na.rm = TRUE),
-    include = ifelse(summation == 2, T, F)
+    include = ifelse(summation > 0, T, F)
     )
 
 write.csv(df, file='inclusion.csv')
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 base <- '~/src/Sepsis-R01/Data_Inc_2023-12-08/'
 
 dx <- fread(paste0(base, 'dx_enc_icd.csv'))
@@ -88,6 +110,8 @@ enc_keys <- fread(paste0(base, 'enc_keys.csv'))
 insurance <- fread(paste0(base, 'insurance.csv'))
 labs <- fread(paste0(base, 'labs.csv'))
 med_ab <- fread(paste0(base, 'med_ab.csv'))
+colnames(med_ab)[which(colnames(med_ab) == "EncounterKey")[2]] <- "NewEncounterKey"
+
 pt <- pt %>% #fread(paste0(base, 'pt.csv')) %>%
   mutate(
     has_birthdate = ifelse(is.na(BirthDate), F, T)
@@ -189,7 +213,6 @@ shock_icd_codes <- c(
 dx_trim <- dx %>%
   select(
     'PatientKey',
-    'PatientDurableKey',
     'EncounterKey',
     'icd_value'
   ) %>%
@@ -200,22 +223,21 @@ dx_trim <- dx %>%
   filter(EncounterKey %in% ed_keys$EncounterKey) %>%
   group_by(EncounterKey) %>%
   summarize(
-    PatientKey = first(PatientKey),
-    PatientDurableKey = first(PatientDurableKey),
+#    PatientKey = first(PatientKey),
     sepsis = max(sepsis),
     septic_shock = max(septic_shock)
   ) %>%
   mutate(
     sepsis = ifelse(sepsis == 1, T, F),
     septic_shock = ifelse(septic_shock == 1, T, F),
-  )
+  ) %>%
+  ungroup
 
 pt_trim <- pt %>%
   select(
     'BirthDate',
     'has_birthdate',
     'PatientKey',
-    'PatientDurableKey',
     'Status',
     'MaritalStatus',
     'Religion',
@@ -228,16 +250,19 @@ pt_trim <- pt %>%
     'UCSFDerivedRaceEthnicity_X'
   ) %>%
   distinct(.keep_all = TRUE) %>%
-  as.data.frame
+  ungroup
 
 tabledf <- df %>%
-  merge(dx_trim, on='EncounterKey', all.x = T) %>%
-  merge(pt_trim, on='PatientKey', all.x = T) %>%
-  merge(ed %>% select(EncounterKey, DurationAge), on='EncounterKey', all.x = T) %>% 
+  merge(dx_trim, by='EncounterKey', all.x = T) %>%
+  merge(ed %>% dplyr::select(EncounterKey, DurationAge), by='EncounterKey', all.x = T) %>% 
+  merge(pt_trim, by='PatientKey', all.x = T) %>%
   mutate(
     processed_birthdate = lubridate::ymd(BirthDate),
     age_days = as.numeric(difftime(lubridate::ymd(ArrivalDateKeyValue), processed_birthdate, units='days')),
-    age = age_days/365.25
+    age = age_days/365.25,
+    age_delta = age - DurationAge,
+    SIRS_WBC = as.factor(SIRS_WBC),
+    SIRS_TEMP = as.factor(SIRS_TEMP),
   ) %>%
   mutate_if(is.character, 
     list(~ ifelse(grepl("^\\*|^$|^Missing$", .), NA, .))
@@ -245,17 +270,22 @@ tabledf <- df %>%
 
 columns <- c(
 #    'Status',
-    'age',
+#    'age',
+    'analyzed',
+    'SIRS_WBC',
+    'SIRS_TEMP',
     'DurationAge',
-    'has_birthdate',
+#    'age_delta',
+#    'has_birthdate',
+    'SexAssignedAtBirth',
+    'GenderIdentity',
     'MaritalStatus',
     'Religion',
     'SmokingStatus',
     'PrimaryFinancialClass',
-    'SexAssignedAtBirth',
-    'GenderIdentity',
     'SexualOrientation',
-    'UCSFDerivedRaceEthnicity_X',
+    'wbc',
+    'temp',
     'sepsis',
     'septic_shock'
 )
@@ -269,3 +299,9 @@ nftools::nf_table1(columns, 'year', tabledf, calculate_pvalue = F)
 # Number of visits per year
 tabledf %>% count(year) %>% pull(n) %>% summary
 ```
+
+```{r eSOFA}
+
+
+```
+
