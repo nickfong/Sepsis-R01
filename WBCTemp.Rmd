@@ -70,8 +70,9 @@ temp <- flowsheet %>%
   slice(1) %>%
   merge(ed %>% select(EncounterKey, ed_timestamp), by='EncounterKey', all.x=T) %>%
   mutate(
-    TEMP_TWO_HOURS = ifelse(difftime(timestamp, ed_timestamp, units = "hours") < 2, 1, 0),
-    SIRS_TEMP = ifelse(TEMP_TWO_HOURS & (temp > 38 | temp < 36), 1, 0)
+#    TEMP_TWO_HOURS = ifelse(difftime(timestamp, ed_timestamp, units = "hours") < 2, 1, 0),
+#    SIRS_TEMP = ifelse(TEMP_TWO_HOURS & (temp > 38 | temp < 36), 1, 0)
+    SIRS_TEMP = ifelse(temp > 38 | temp < 36, 1, 0)
   )
 
 temp %>% ungroup %>% count(SIRS_TEMP)
@@ -80,8 +81,8 @@ temp %>% ungroup %>% count(SIRS_TEMP)
 
 ```{r}
 df <- ed_keys %>%
-  merge(wbc %>% select(PatientKey, EncounterKey, wbc, TWO_HOURS, SIRS_WBC), by='EncounterKey', all.x=T) %>%
-  merge(temp %>% select(PatientKey, EncounterKey, temp, SIRS_TEMP), by='EncounterKey', all.x=T) %>%
+  merge(wbc %>% select(PatientDurableKey, EncounterKey, wbc, TWO_HOURS, SIRS_WBC, timestamp), by='EncounterKey', all.x=T, suffixes=c('_ED', '_WBC')) %>%
+  merge(temp %>% select(PatientDurableKey, EncounterKey, temp, SIRS_TEMP, timestamp), by='EncounterKey', all.x=T, suffixes=c('', '_TEMP')) %>%
   mutate(
     analyzed = ifelse(!is.na(wbc), T, ifelse(!is.na(temp), T, F)),
     summation = rowSums(select(., contains('SIRS')), na.rm = TRUE),
@@ -212,7 +213,6 @@ shock_icd_codes <- c(
 ```{r}
 dx_trim <- dx %>%
   select(
-    'PatientKey',
     'EncounterKey',
     'icd_value'
   ) %>%
@@ -223,7 +223,6 @@ dx_trim <- dx %>%
   filter(EncounterKey %in% ed_keys$EncounterKey) %>%
   group_by(EncounterKey) %>%
   summarize(
-#    PatientKey = first(PatientKey),
     sepsis = max(sepsis),
     septic_shock = max(septic_shock)
   ) %>%
@@ -237,7 +236,7 @@ pt_trim <- pt %>%
   select(
     'BirthDate',
     'has_birthdate',
-    'PatientKey',
+    'PatientDurableKey',
     'Status',
     'MaritalStatus',
     'Religion',
@@ -250,12 +249,14 @@ pt_trim <- pt %>%
     'UCSFDerivedRaceEthnicity_X'
   ) %>%
   distinct(.keep_all = TRUE) %>%
+  group_by(PatientDurableKey) %>%
+  slice(1) %>%
   ungroup
 
 tabledf <- df %>%
   merge(dx_trim, by='EncounterKey', all.x = T) %>%
   merge(ed %>% dplyr::select(EncounterKey, DurationAge), by='EncounterKey', all.x = T) %>% 
-  merge(pt_trim, by='PatientKey', all.x = T) %>%
+  merge(pt_trim, by='PatientDurableKey', all.x = T) %>%
   mutate(
     processed_birthdate = lubridate::ymd(BirthDate),
     age_days = as.numeric(difftime(lubridate::ymd(ArrivalDateKeyValue), processed_birthdate, units='days')),
@@ -299,8 +300,87 @@ nftools::nf_table1(columns, 'year', tabledf, calculate_pvalue = F)
 # Number of visits per year
 tabledf %>% count(year) %>% pull(n) %>% summary
 ```
+```{r Determine Flag Timestamp}
+df_timestamp <- df %>%
+  filter(include == T) %>%
+  rename(timestamp_WBC=timestamp) %>%
+  mutate(timestamp=ifelse(is.na(SIRS_TEMP) | SIRS_TEMP == 0,
+                          timestamp_WBC,
+                          ifelse(is.na(SIRS_WBC) | SIRS_WBC == 0,
+                                 timestamp_TEMP,
+                                 ifelse(timestamp_WBC < timestamp_TEMP,
+                                        timestamp_WBC,
+                                        timestamp_TEMP)))) %>%
+  mutate(timestamp = as_datetime(ymd_hms("1970-01-01 00:00:00") + seconds(timestamp))) %>%
+  select(contains('Key'), contains('timestamp'), contains('SIRS'))
+```
+
+```{r eSOFA Vasopressor Initiation}
+
+```
+
+> icu_reg %>% count(IntubationDays)
+> resp %>% count(FlowsheetRowName) %>% as.data.table %>% arrange(-n)
+                                FlowsheetRowName      n
+ 1:                                       R FIO2 692846
+ 2:                         R RESP PEEP/CPAP SET  96036 #Good
+ 3:                               R RT VENT MODE  92240 #Good
+ 4:                        R RT MODE/BREATH TYPE  91142 #Good but with DEID columns
+ 5:      R RT VENTILATOR RESPIRATORY RATE  TOTAL  90097
+ 6:                   RT MAP MEASURED_IP_CD_UCSF  89282
+ 7:                       R RT (ADULT) VENT TYPE  84673
+ 8:    R RT VENTILATOR MINUTE VOLUME MEASURED V2  70198
+ 9: R RT (ADULT) VENTILATOR TIDAL VOLUME EXHALED  58667
+10:   R RT (ADULT) VENTILATOR I:E RATIO MEASURED  56879
+11:                                R RESP RR SET  53608
+12:              R OXYGEN SATURATION INDEX (OSI)  51269
+13:                                     R FIO2 2   9678
+
+```{r eSOFA Mechanical Ventilation Initiation}
+esofa_mv <- resp %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey) %>%
+  filter(FlowsheetRowName %in% c('R RESP PEEP/CPAP SET', 'R RT VENT MODE', 'R RT MODE/BREATH TYPE')) %>%
+  mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue))) %>%
+  arrange(timestamp) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  mutate(ESOFA_MV = 1) %>%
+  select(EncounterKey, timestamp, ESOFA_MV)
+```
+
+> labs %>% count(ComponentName)
+                             ComponentName      n
+ 1:                      Bilirubin, Direct  12337
+ 2:                       Bilirubin, Total 139478
+ 3:                             Creatinine 352940
+ 4:                 Creatinine Whole Blood     35
+ 5:                      Creatinine, Serum     60
+ 6:                             Hemoglobin 334015
+ 7: Hemoglobin, Plasma, Alternative Method    182
+ 8:                        Lactate, plasma  15653
+ 9:                   Lactate, whole blood 117056
+10:                                    PO2 161882
+11:                            PO2, Venous     42
+12:                 POCT, Total Hemoglobin    598
+13:                         Platelet Count 336999
+14:                       Total Hemoglobin      5
+15:                              WBC Count 333037
+
+```{r eSOFA Lactate}
+
+```
+
 
 ```{r eSOFA}
+ 
+
+# lactate ≥2.0 mmol/L
+
+# doubling in creatinine
+
+# doubling in bilirubin to ≥2.0 mg/dL
+
+# ≥50% decrease in platelet count to less than 100 cells/μL
 
 
 ```
