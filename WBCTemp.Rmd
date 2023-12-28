@@ -12,7 +12,7 @@ ed_keys <- fread(paste0(base, 'ed_keys.csv'))
 enc_dx <- fread(paste0(base, 'enc_dx.csv'))
 flowsheet <- fread(paste0(base, 'flowsheet.csv'))
 hosp_adm <- fread(paste0(base, 'hosp_adm.csv'))
-labs <- fread(paste0(base, 'labs.csv'))
+old_labs <- fread(paste0(base, 'labs.csv'))
 pt <- fread(paste0(base, 'pt.csv')) %>%
   mutate(
     has_birthdate = ifelse(is.na(BirthDate), F, T)
@@ -28,12 +28,29 @@ flowsheet <- flowsheet %>%
   mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue))) %>%
   dplyr::filter(EncounterKey %in% ed_keys$EncounterKey)
 
+ed <- ed %>%
+  mutate(ed_timestamp = ymd_hm(paste(ArrivalDateKeyValue, ArrivalTimeOfDayKeyValue)))
+
+# Load supporting files
+base <- '~/src/Sepsis-R01/Data_All_2_2023-12-27/'
+death <- fread(paste0(base, 'death.csv'))
+#ed <- fread(paste0(base, 'ed.csv'))
+enc_keys <- fread(paste0(base, 'enc_keys.csv'))
+flowsheet_assess <- fread(paste0(base, 'flowsheet_assess.csv'))
+flowsheet_resp <- fread(paste0(base, 'flowsheet_resp.csv'))
+#hosp_adm <- fread(paste0(base, 'hosp_adm.csv'))
+icu_reg <- fread(paste0(base, 'icu_reg.csv'))
+insurance <- fread(paste0(base, 'insurance.csv'))
+labs <- fread(paste0(base, 'labs.csv'))
+med_ab <- fread(paste0(base, 'med_ab.csv'))
+med_vp <- fread(paste0(base, 'med_vp.csv'))
+
+#pt <- fread(paste0(base, 'pt.csv'))
+pt_keys <- fread(paste0(base, 'pt_keys.csv'))
+
 # Sort by collection time, not result time
 labs <- labs %>%
   mutate(timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue)))
-
-ed <- ed %>%
-  mutate(ed_timestamp = ymd_hm(paste(ArrivalDateKeyValue, ArrivalTimeOfDayKeyValue)))
 ```
 
 ```{r WBC}
@@ -92,70 +109,6 @@ df <- ed_keys %>%
 write.csv(df, file='inclusion.csv')
 ```
 
-```{r eval=FALSE, include=FALSE}
-base <- '~/src/Sepsis-R01/Data_Inc_2023-12-08/'
-
-dx <- fread(paste0(base, 'dx_enc_icd.csv'))
-death <- fread(paste0(base, 'death.csv'))
-durationdim <- fread(paste0('~/src/Sepsis-R01/', 'durationdim.csv')) %>% 
-  select(DurationKey, Years) %>%
-  rename(DurationAge=Years)
-#ed <- fread(paste0(base, 'ed.csv')) %>%
-ed <- ed %>%
-  merge(durationdim, by.x = 'AgeKey', by.y='DurationKey', all.x=T)
-assess <- fread(paste0(base, 'flowsheet_assess.csv'))
-resp <- fread(paste0(base, 'flowsheet_resp.csv'))
-hosp <- fread(paste0(base, 'hosp_adm.csv'))
-icu_reg <- fread(paste0(base, 'icu_reg.csv'))
-enc_keys <- fread(paste0(base, 'enc_keys.csv'))
-insurance <- fread(paste0(base, 'insurance.csv'))
-labs <- fread(paste0(base, 'labs.csv'))
-med_ab <- fread(paste0(base, 'med_ab.csv'))
-colnames(med_ab)[which(colnames(med_ab) == "EncounterKey")[2]] <- "NewEncounterKey"
-
-pt <- pt %>% #fread(paste0(base, 'pt.csv')) %>%
-  mutate(
-    has_birthdate = ifelse(is.na(BirthDate), F, T)
-  )
-pt_keys <- fread(paste0(base, 'pt_keys.csv'))
-
-map_icd_to_category <- function(icd_code) {
-  # Extract the first character of the ICD-10 code
-  first_char <- substr(icd_code, 1, 1)
-
-  # Map ICD-10 codes to broader categories based on the first character
-  category <- switch(first_char,
-    A = "Infectious and Parasitic Diseases",
-    B = "Infectious and Parasitic Diseases",
-    C = "Neoplasms (Tumors)",
-    D = ifelse(grepl("^D[5-8]", icd_code), "Blood and Immune System Disorders", "Other"),
-    E = "Endocrine, Nutritional, and Metabolic Diseases",
-    F = "Mental and Behavioral Disorders",
-    G = "Diseases of the Nervous System",
-    H = "Diseases of the Eye and Adnexa",
-    I = "Diseases of the Circulatory System",
-    J = "Diseases of the Respiratory System",
-    K = "Diseases of the Digestive System",
-    L = "Diseases of the Skin and Subcutaneous Tissue",
-    M = "Diseases of the Musculoskeletal System and Connective Tissue",
-    N = "Diseases of the Genitourinary System",
-    O = "Pregnancy, Childbirth, and the Puerperium",
-    P = "Conditions Originating in the Perinatal Period",
-    Q = "Congenital Malformations, Deformations, and Chromosomal Abnormalities",
-    R = "Symptoms, Signs, and Abnormal Findings",
-    S = "Injury, Poisoning, and Other Consequences of External Causes",
-    T = "Injury, Poisoning, and Other Consequences of External Causes",
-    U = "Codes for Special Purposes",
-    Other = "Other"
-  )
-
-  return(category)
-}
-
-#dx <- dx %>%
-#  mutate(ICD_Category = map_icd_to_category(icd_value))
-
-```
 ```{r Define Sepsis ICD Codes}
 icd_codes <- c(dx %>% 
                  filter(grepl('sepsis|septic', icd_l3_name, ignore.case=T)) %>% 
@@ -312,11 +265,32 @@ df_timestamp <- df %>%
                                         timestamp_WBC,
                                         timestamp_TEMP)))) %>%
   mutate(timestamp = as_datetime(ymd_hms("1970-01-01 00:00:00") + seconds(timestamp))) %>%
-  select(contains('Key'), contains('timestamp'), contains('SIRS'))
+  select(contains('Key'), contains('timestamp'), contains('SIRS')) %>%
+  mutate(
+    begin_timestamp = timestamp + hours(48) - hours(4),
+    end_timestamp = timestamp + hours(48) + hours(4),
+  )
+
+df_timestamp <- df_timestamp %>% select(
+  'EncounterKey',
+  'begin_timestamp', 
+  'end_timestamp'
+)
+
+df <- df %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T)
 ```
 
-```{r eSOFA Vasopressor Initiation}
-
+```{r eSOFA Vasopressor}
+esofa_pressors <- med_vp %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey) %>%
+  mutate(timestamp = ymd_hm(paste(AdministrationDateKeyValue, AdministrationTimeOfDayKeyValue))) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  filter(timestamp > begin_timestamp & timestamp < end_timestamp) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  mutate(ESOFA_PRESSOR = 1) %>%
+  select(EncounterKey, timestamp, ESOFA_PRESSOR)
 ```
 
 > icu_reg %>% count(IntubationDays)
@@ -336,11 +310,13 @@ df_timestamp <- df %>%
 12:              R OXYGEN SATURATION INDEX (OSI)  51269
 13:                                     R FIO2 2   9678
 
-```{r eSOFA Mechanical Ventilation Initiation}
+```{r eSOFA Mechanical Ventilation}
 esofa_mv <- resp %>%
   filter(EncounterKey %in% ed_keys$EncounterKey) %>%
   filter(FlowsheetRowName %in% c('R RESP PEEP/CPAP SET', 'R RT VENT MODE', 'R RT MODE/BREATH TYPE')) %>%
   mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue))) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  filter(timestamp > begin_timestamp & timestamp < end_timestamp)
   arrange(timestamp) %>%
   group_by(EncounterKey) %>%
   slice(1) %>%
@@ -367,21 +343,99 @@ esofa_mv <- resp %>%
 15:                              WBC Count 333037
 
 ```{r eSOFA Lactate}
-
+esofa_lactate <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey) %>%
+  filter(ComponentName %in% c('Lactate, plasma')) %>%
+  mutate(timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  filter(timestamp > begin_timestamp & timestamp < end_timestamp) %>%
+  arrange(timestamp) %>%
+  filter(Value >= 2) %>%
+  mutate(ESOFA_LACTATE = 1) %>%
+  select(EncounterKey, timestamp, ESOFA_LACTATE)
 ```
 
+```{r Doubling of Creatinine}
+baseline_creatinine <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Creatinine', 'Creatinine, Serum')) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  arrange(timestamp) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  select(EncounterKey, NumericValue) %>%
+  rename(baseline_creatinine=NumericValue) %>%
+  ungroup
 
-```{r eSOFA}
- 
-
-# lactate ≥2.0 mmol/L
-
-# doubling in creatinine
-
-# doubling in bilirubin to ≥2.0 mg/dL
-
-# ≥50% decrease in platelet count to less than 100 cells/μL
-
-
+esofa_creatinine <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Creatinine', 'Creatinine, Serum')) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  merge(baseline_creatinine, by='EncounterKey', all.x=T) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  arrange(timestamp) %>%
+  filter(timestamp > begin_timestamp & timestamp < end_timestamp & NumericValue >= baseline_creatinine * 2) %>%
+  mutate(ESOFA_CREATININE= 1) %>%
+  select(EncounterKey, timestamp, ESOFA_CREATININE)
 ```
 
+```{r Doubling of Bilirubin to ≥2 mg/dL}
+baseline_bilirubin <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Bilirubin, Total')) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  arrange(timestamp) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  select(EncounterKey, NumericValue) %>%
+  rename(baseline_bilirubin=NumericValue) %>%
+  ungroup
+
+esofa_bilirubin <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Bilirubin, Total')) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  merge(baseline_bilirubin, by='EncounterKey', all.x=T) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  arrange(timestamp) %>%
+  filter(timestamp > begin_timestamp & timestamp < end_timestamp & NumericValue >= baseline_bilirubin * 2 & NumericValue >= 2) %>%
+  mutate(ESOFA_BILIRUBIN = 1) %>%
+  select(EncounterKey, timestamp, ESOFA_BILIRUBIN)
+```
+
+```{r ≥50% Decrease in Platelet Count to less than 100 cells/microL}
+baseline_platelet <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Platelet Count')) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  arrange(timestamp) %>%
+  group_by(EncounterKey) %>%
+  slice(1) %>%
+  select(EncounterKey, NumericValue) %>%
+  filter(NumericValue >= 100) %>% # Filter out baseline values < 100
+  rename(baseline_platelet=NumericValue) %>%
+  ungroup
+
+esofa_platelet <- labs %>%
+  filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Platelet Count')) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  merge(baseline_platelet, by='EncounterKey', all.x=T) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  arrange(timestamp) %>%
+  filter(timestamp > begin_timestamp & timestamp < end_timestamp & NumericValue < 100 & baseline_platelet/2 >= NumericValue) %>%
+  mutate(ESOFA_PLATELET = 1) %>%
+  select(EncounterKey, timestamp, ESOFA_PLATELET)
+```
