@@ -187,6 +187,10 @@ dx_trim <- dx %>%
 
 pt_trim <- pt %>%
   select(
+    'Sex',
+    'PreferredLanguage',
+    'FirstRace',
+    'SecondRace',
     'BirthDate',
     'has_birthdate',
     'PatientDurableKey',
@@ -225,6 +229,10 @@ tabledf <- df %>%
 columns <- c(
 #    'Status',
 #    'age',
+    'Sex',
+    'PreferredLanguage',
+    'FirstRace',
+    'SecondRace',
     'analyzed',
     'SIRS_WBC',
     'SIRS_TEMP',
@@ -269,12 +277,14 @@ df_timestamp <- df %>%
   mutate(
     begin_timestamp = timestamp + hours(48) - hours(4),
     end_timestamp = timestamp + hours(48) + hours(4),
+    midpoint_timestamp = timestamp + hours(48)
   )
 
 df_timestamp <- df_timestamp %>% select(
   'EncounterKey',
   'begin_timestamp', 
-  'end_timestamp'
+  'end_timestamp',
+  'midpoint_timestamp'
 )
 
 df <- df %>%
@@ -282,11 +292,13 @@ df <- df %>%
 ```
 
 ```{r eSOFA Vasopressor}
+# Any vasopressor administration between ED encounter and 48 hours
 esofa_pressors <- med_vp %>%
   filter(EncounterKey %in% ed_keys$EncounterKey) %>%
   mutate(timestamp = ymd_hm(paste(AdministrationDateKeyValue, AdministrationTimeOfDayKeyValue))) %>%
   merge(df_timestamp, by='EncounterKey', all.x=T) %>%
-  filter(timestamp > begin_timestamp & timestamp < end_timestamp) %>%
+#  filter(timestamp > begin_timestamp & timestamp < end_timestamp) %>%
+  filter(timestamp < midpoint_timestamp) %>%
   group_by(EncounterKey) %>%
   slice(1) %>%
   mutate(ESOFA_PRESSOR = 1) %>%
@@ -311,12 +323,14 @@ esofa_pressors <- med_vp %>%
 13:                                     R FIO2 2   9678
 
 ```{r eSOFA Mechanical Ventilation}
+# Any vasopressor administration between ED encounter and 48 hours
 esofa_mv <- resp %>%
   filter(EncounterKey %in% ed_keys$EncounterKey) %>%
   filter(FlowsheetRowName %in% c('R RESP PEEP/CPAP SET', 'R RT VENT MODE', 'R RT MODE/BREATH TYPE')) %>%
   mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue))) %>%
   merge(df_timestamp, by='EncounterKey', all.x=T) %>%
-  filter(timestamp > begin_timestamp & timestamp < end_timestamp)
+#  filter(timestamp > begin_timestamp & timestamp < end_timestamp) %>%
+  filter(timestamp < midpoint_timestamp) %>%
   arrange(timestamp) %>%
   group_by(EncounterKey) %>%
   slice(1) %>%
@@ -396,6 +410,15 @@ baseline_bilirubin <- labs %>%
   select(EncounterKey, NumericValue) %>%
   rename(baseline_bilirubin=NumericValue) %>%
   ungroup
+
+# previous_bilirubun <- labs %>%
+#   filter(ComponentName %in% c('Bilirubin, Total')) %>%
+#   merge(ed_keys %>% select(EncounterKey, ArrivalDateKeyValue), by='EncounterKey', all.x=T) %>%
+#   group_by(PatientDurableKey) %>%
+#   arrange(timestamp) %>%
+#   filter(timestamp < ArrivalDateKeyValue)
+#   
+  
 
 esofa_bilirubin <- labs %>%
   filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Bilirubin, Total')) %>%
