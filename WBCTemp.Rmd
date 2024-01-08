@@ -480,6 +480,7 @@ esofa <- df_timestamp %>%
     ESOFA = ifelse(ESOFA > 0, 1, 0)
   )
 ```
+
 ```{r Create Epochs}
 # For the first four hours after timestamp, create 30-minute epochs
 # Epoch labels should be epoch_1_begin, epoch_1_end, epoch_2_begin, epoch_2_end, etc.
@@ -503,43 +504,194 @@ df_timestamp <- df_timestamp %>%
     epoch_7_end = inclusion_timestamp + minutes(210),
     epoch_8_begin = inclusion_timestamp + minutes(210),
     epoch_8_end = inclusion_timestamp + minutes(240)
-  )
+  ) %>%
+  merge(ed %>% dplyr::select(EncounterKey, DurationAge), by='EncounterKey', all.x = T)
+  
+  
+generate_lab_epochs <- function(df, component_name, label) {
+  output <- df %>%
+    filter(ComponentName %in% component_name) %>%
+    filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+    mutate(
+      NumericValue = as.numeric(Value),
+      timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+    ) %>%
+    merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+    mutate(
+      epoch_label = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
+                                1,
+                                ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
+                                       2,
+                                       ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
+                                              3,
+                                              ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
+                                                     4,
+                                                     ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
+                                                            5,
+                                                            ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
+                                                                   6,
+                                                                   ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
+                                                                          7,
+                                                                          ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
+                                                                                 8,
+                                                                                 NA))))))))
+    ) %>%
+    dcast(EncounterKey ~ epoch_label, value.var = "NumericValue", fun.aggregate = max) %>%
+    select(-'NA')
+  
+  colnames(output) <- c("EncounterKey", paste0("epoch_", colnames(output)[-1], "_", label))
+  output[output == -Inf] <- NA
+  return(output)
+}
 
-creatinine <- labs %>%
-  filter(ComponentName %in% c('Creatinine', 'Creatinine, Serum')) %>%
-  filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
-  mutate(
-    NumericValue = as.numeric(Value),
-    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
-  ) %>%
-  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
-  mutate(
-    epoch_1_creatinine = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end, NumericValue, NA)
-  ) %>%
-  mutate(
-    creatinine_epoch = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
-                              1,
-                              ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
-                                     2,
-                                     ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
-                                            3,
-                                            ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
-                                                   4,
-                                                   ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
-                                                          5,
-                                                          ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
-                                                                 6,
-                                                                 ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
-                                                                        7,
-                                                                        ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
-                                                                               8,
-                                                                               NA))))))))
-  ) %>%
-  dcast(EncounterKey ~ creatinine_epoch, value.var = "NumericValue", fun.aggregate = max) %>%
-  select(-'NA')
+epochs_creatinine <- generate_lab_epochs(labs, c('Creatinine', 'Creatinine, Serum'), 'creatinine')
+epochs_lactate <- generate_lab_epochs(labs, c('Lactate, plasma'), 'lactate')
+epochs_hemoglobin <- generate_lab_epochs(labs, c('Hemoglobin'), 'hgb')
+epochs_bilirubin <- generate_lab_epochs(labs, c('Bilirubin, Total'), 'bili')
+epochs_platelet <- generate_lab_epochs(labs, c('Platelet Count'), 'plt')
+epochs_wbc <- generate_lab_epochs(labs, c('WBC Count'), 'wbc')
+epochs_po2 <- generate_lab_epochs(labs, c('PO2'), 'po2')
 
-colnames(creatinine) <- c("EncounterKey", paste0("epoch_", colnames(creatinine)[-1], "_creatinine"))
-creatinine[creatinine == -Inf] <- NA
+generate_vitals_epochs <- function(df, component_name, label) {
+  output <- df %>%
+    filter(FlowsheetRowDisplayName == component_name) %>%
+    filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+    mutate(
+      NumericValue = as.numeric(Value),
+      timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)),
+    ) %>%
+    merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+    mutate(
+      epoch_label = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
+                                1,
+                                ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
+                                       2,
+                                       ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
+                                              3,
+                                              ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
+                                                     4,
+                                                     ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
+                                                            5,
+                                                            ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
+                                                                   6,
+                                                                   ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
+                                                                          7,
+                                                                          ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
+                                                                                 8,
+                                                                                 NA))))))))
+    ) %>%
+    dcast(EncounterKey ~ epoch_label, value.var = "NumericValue", fun.aggregate = max) %>%
+    select(-'NA')
+  
+  colnames(output) <- c("EncounterKey", paste0("epoch_", colnames(output)[-1], "_", label))
+  output[output == -Inf] <- NA
+  return(output)
+}
+
+epochs_pulse <- generate_vitals_epochs(flowsheet_assess, 'Pulse', 'pulse')
+epochs_resp <- generate_vitals_epochs(flowsheet_assess, 'Resp', 'resp')
+epochs_temp <- generate_vitals_epochs(flowsheet_assess, 'Temp', 'temp')
+epochs_map <- generate_vitals_epochs(flowsheet_assess, 'MAP (mmHg)', 'map')
+epochs_gcse <- generate_vitals_epochs(flowsheet_assess, 'Best Eye Response', 'gcs_eye')
+epochs_gcsv <- generate_vitals_epochs(flowsheet_assess, 'Best Verbal Response', 'gcs_verbal')
+epochs_gcsm <- generate_vitals_epochs(flowsheet_assess, 'Best Motor Response (upper extremities)', 'gcs_motor')
+epochs_weight <- generate_vitals_epochs(flowsheet_assess, 'Weight', 'weight')
+
+# Merge epoch dataframes
+output_df <- df_timestamp %>%
+  merge(epochs_creatinine, by='EncounterKey', all.x=T) %>%
+  merge(epochs_lactate, by='EncounterKey', all.x=T) %>%
+  merge(epochs_hemoglobin, by='EncounterKey', all.x=T) %>%
+  merge(epochs_bilirubin, by='EncounterKey', all.x=T) %>%
+  merge(epochs_platelet, by='EncounterKey', all.x=T) %>%
+  merge(epochs_wbc, by='EncounterKey', all.x=T) %>%
+  merge(epochs_po2, by='EncounterKey', all.x=T) %>%
+  merge(epochs_pulse, by='EncounterKey', all.x=T) %>%
+  merge(epochs_resp, by='EncounterKey', all.x=T) %>%
+  merge(epochs_temp, by='EncounterKey', all.x=T) %>%
+  merge(epochs_map, by='EncounterKey', all.x=T) %>%
+  merge(epochs_gcse, by='EncounterKey', all.x=T) %>%
+  merge(epochs_gcsv, by='EncounterKey', all.x=T) %>%
+  merge(epochs_gcsm, by='EncounterKey', all.x=T) %>%
+  merge(epochs_weight, by='EncounterKey', all.x=T) %>%
+  merge(esofa %>% select('EncounterKey', contains('ESOFA')), by='EncounterKey', all.x=T) %>%
+  merge(dx_trim, by='EncounterKey', all.x=T)
+
+# 
+# 
+# creatinine <- labs %>%
+#   filter(ComponentName %in% c('Creatinine', 'Creatinine, Serum')) %>%
+#   filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+#   mutate(
+#     NumericValue = as.numeric(Value),
+#     timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+#   ) %>%
+#   merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+#   mutate(
+#     epoch_1_creatinine = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end, NumericValue, NA)
+#   ) %>%
+#   mutate(
+#     creatinine_epoch = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
+#                               1,
+#                               ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
+#                                      2,
+#                                      ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
+#                                             3,
+#                                             ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
+#                                                    4,
+#                                                    ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
+#                                                           5,
+#                                                           ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
+#                                                                  6,
+#                                                                  ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
+#                                                                         7,
+#                                                                         ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
+#                                                                                8,
+#                                                                                NA))))))))
+#   ) %>%
+#   dcast(EncounterKey ~ creatinine_epoch, value.var = "NumericValue", fun.aggregate = max) %>%
+#   select(-'NA')
+# 
+# colnames(creatinine) <- c("EncounterKey", paste0("epoch_", colnames(creatinine)[-1], "_creatinine"))
+# creatinine[creatinine == -Inf] <- NA
+# 
+# # Lactate
+# lactate <- labs %>%
+#   filter(ComponentName %in% c('Lactate, plasma')) %>%
+#   filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+#   mutate(
+#     NumericValue = as.numeric(Value),
+#     timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+#   ) %>%
+#   merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+#   mutate(
+#     epoch_1_lactate = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end, NumericValue, NA)
+#   ) %>%
+#   mutate(
+#     lactate_epoch = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
+#                               1,
+#                               ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
+#                                      2,
+#                                      ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
+#                                             3,
+#                                             ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
+#                                                    4,
+#                                                    ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
+#                                                           5,
+#                                                           ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
+#                                                                  6,
+#                                                                  ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
+#                                                                         7,
+#                                                                         ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
+#                                                                                8,
+#                                                                                NA))))))))
+#   ) %>%
+#   dcast(EncounterKey ~ lactate_epoch, value.var = "NumericValue", fun.aggregate = max) %>%
+#   select(-'NA')
+# 
+# colnames(lactate) <- c("EncounterKey", paste0("epoch_", colnames(lactate)[-1], "_lactate"))
+# lactate[lactate == -Inf] <- NA
+
 
 # for (i in 1:16) {
 #   df_timestamp <- df_timestamp %>%
