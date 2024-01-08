@@ -2,7 +2,8 @@
 nftools::nf_library(c(
   'lubridate',
   'tidyverse',
-  'data.table'
+  'data.table',
+  'glue'
 ))
 
 base <- '~/src/Sepsis-R01/Data_All_2023-12-21/'
@@ -210,6 +211,12 @@ pt_trim <- pt %>%
   slice(1) %>%
   ungroup
 
+# replace any value with the string 'Unknown' or 'Decline' ignoring case with NA 
+pt_trim <- pt_trim %>%
+  mutate_if(is.character, 
+    list(~ ifelse(grepl("Unknown|Decline", ., ignore.case = T), NA, .))
+  )
+
 tabledf <- df %>%
   merge(dx_trim, by='EncounterKey', all.x = T) %>%
   merge(ed %>% dplyr::select(EncounterKey, DurationAge), by='EncounterKey', all.x = T) %>% 
@@ -230,22 +237,22 @@ columns <- c(
 #    'Status',
 #    'age',
     'Sex',
-    'PreferredLanguage',
+#    'PreferredLanguage',
     'FirstRace',
-    'SecondRace',
-    'analyzed',
-    'SIRS_WBC',
-    'SIRS_TEMP',
+#    'SecondRace',
+#    'analyzed',
+#    'SIRS_WBC',
+#    'SIRS_TEMP',
     'DurationAge',
 #    'age_delta',
 #    'has_birthdate',
-    'SexAssignedAtBirth',
-    'GenderIdentity',
-    'MaritalStatus',
-    'Religion',
-    'SmokingStatus',
-    'PrimaryFinancialClass',
-    'SexualOrientation',
+#    'SexAssignedAtBirth',
+#    'GenderIdentity',
+#    'MaritalStatus',
+#    'Religion',
+#    'SmokingStatus',
+#    'PrimaryFinancialClass',
+#    'SexualOrientation',
     'wbc',
     'temp',
     'sepsis',
@@ -278,10 +285,14 @@ df_timestamp <- df %>%
     begin_timestamp = timestamp + hours(48) - hours(4),
     end_timestamp = timestamp + hours(48) + hours(4),
     midpoint_timestamp = timestamp + hours(48)
+  ) %>%
+  rename(
+    inclusion_timestamp=timestamp
   )
 
 df_timestamp <- df_timestamp %>% select(
   'EncounterKey',
+  'inclusion_timestamp',
   'begin_timestamp', 
   'end_timestamp',
   'midpoint_timestamp'
@@ -411,15 +422,6 @@ baseline_bilirubin <- labs %>%
   rename(baseline_bilirubin=NumericValue) %>%
   ungroup
 
-# previous_bilirubun <- labs %>%
-#   filter(ComponentName %in% c('Bilirubin, Total')) %>%
-#   merge(ed_keys %>% select(EncounterKey, ArrivalDateKeyValue), by='EncounterKey', all.x=T) %>%
-#   group_by(PatientDurableKey) %>%
-#   arrange(timestamp) %>%
-#   filter(timestamp < ArrivalDateKeyValue)
-#   
-  
-
 esofa_bilirubin <- labs %>%
   filter(EncounterKey %in% ed_keys$EncounterKey & ComponentName %in% c('Bilirubin, Total')) %>%
   mutate(
@@ -462,3 +464,122 @@ esofa_platelet <- labs %>%
   mutate(ESOFA_PLATELET = 1) %>%
   select(EncounterKey, timestamp, ESOFA_PLATELET)
 ```
+
+
+```{r Merge eSOFA}
+# merge each esofa_ dataframe, selecting only EncounterKey and the ESOFA_ column to be merged in
+esofa <- df_timestamp %>%
+  merge(esofa_pressors %>% select(EncounterKey, ESOFA_PRESSOR), by='EncounterKey', all.x=T) %>%
+  merge(esofa_mv %>% select(EncounterKey, ESOFA_MV), by='EncounterKey', all.x=T) %>%
+  merge(esofa_lactate %>% select(EncounterKey, ESOFA_LACTATE), by='EncounterKey', all.x=T) %>%
+  merge(esofa_creatinine %>% select(EncounterKey, ESOFA_CREATININE), by='EncounterKey', all.x=T) %>%
+  merge(esofa_bilirubin %>% select(EncounterKey, ESOFA_BILIRUBIN), by='EncounterKey', all.x=T) %>%
+  merge(esofa_platelet %>% select(EncounterKey, ESOFA_PLATELET), by='EncounterKey', all.x=T) %>%
+  mutate(
+    ESOFA = rowSums(select(., starts_with('ESOFA')), na.rm=T),
+    ESOFA = ifelse(ESOFA > 0, 1, 0)
+  )
+```
+```{r Create Epochs}
+# For the first four hours after timestamp, create 30-minute epochs
+# Epoch labels should be epoch_1_begin, epoch_1_end, epoch_2_begin, epoch_2_end, etc.
+# Epochs should be 30 minutes long, and should not overlap
+
+df_timestamp <- df_timestamp %>%
+  mutate(
+    epoch_1_begin = inclusion_timestamp,
+    epoch_1_end = inclusion_timestamp + minutes(30),
+    epoch_2_begin = inclusion_timestamp + minutes(30),
+    epoch_2_end = inclusion_timestamp + minutes(60),
+    epoch_3_begin = inclusion_timestamp + minutes(60),
+    epoch_3_end = inclusion_timestamp + minutes(90),
+    epoch_4_begin = inclusion_timestamp + minutes(90),
+    epoch_4_end = inclusion_timestamp + minutes(120),
+    epoch_5_begin = inclusion_timestamp + minutes(120),
+    epoch_5_end = inclusion_timestamp + minutes(150),
+    epoch_6_begin = inclusion_timestamp + minutes(150),
+    epoch_6_end = inclusion_timestamp + minutes(180),
+    epoch_7_begin = inclusion_timestamp + minutes(180),
+    epoch_7_end = inclusion_timestamp + minutes(210),
+    epoch_8_begin = inclusion_timestamp + minutes(210),
+    epoch_8_end = inclusion_timestamp + minutes(240)
+  )
+
+creatinine <- labs %>%
+  filter(ComponentName %in% c('Creatinine', 'Creatinine, Serum')) %>%
+  filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+  mutate(
+    NumericValue = as.numeric(Value),
+    timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+  ) %>%
+  merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+  mutate(
+    epoch_1_creatinine = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end, NumericValue, NA)
+  ) %>%
+  mutate(
+    creatinine_epoch = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
+                              1,
+                              ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
+                                     2,
+                                     ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
+                                            3,
+                                            ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
+                                                   4,
+                                                   ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
+                                                          5,
+                                                          ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
+                                                                 6,
+                                                                 ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
+                                                                        7,
+                                                                        ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
+                                                                               8,
+                                                                               NA))))))))
+  ) %>%
+  dcast(EncounterKey ~ creatinine_epoch, value.var = "NumericValue", fun.aggregate = max) %>%
+  select(-'NA')
+
+colnames(creatinine) <- c("EncounterKey", paste0("epoch_", colnames(creatinine)[-1], "_creatinine"))
+creatinine[creatinine == -Inf] <- NA
+
+# for (i in 1:16) {
+#   df_timestamp <- df_timestamp %>%
+#     left_join(
+#       creatinine %>%
+# #        filter(timestamp >= get(paste0('epoch_', i, '_begin')) & timestamp < get(paste0('epoch_', i, '_end'))) %>%
+#         filter(timestamp >= df_timestamp[[glue('epoch_{i}_begin')]] & timestamp < df_timestamp[[glue('epoch_{i}_end')]]) %>%
+#         group_by(EncounterKey) %>%
+#         # take the mean of the creatinine values for the grouped EncounterKey
+#         summarise(creatinine = mean(NumericValue)) %>%
+#         ungroup,# %>%
+#         #select(EncounterKey, timestamp, NumericValue), #%>%
+#         #rename(!!glue("epoch_{i}_creatinine") := creatinine),
+#       by='EncounterKey'
+#     )
+#   df_timestamp[[glue("epoch_{i}_creatinine")]] <- df_timestamp$creatinine
+#   df_timestamp <- df_timestamp %>%
+#     select(-creatinine)
+# }
+
+
+  
+
+```
+```{r}
+# calculate the frequency of pulse checks
+pulse <- flowsheet_assess %>%
+  filter(FlowsheetRowDisplayName == 'Pulse') %>%
+  filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+  merge(df_timestamp %>% select(EncounterKey, inclusion_timestamp), by='EncounterKey', all.x=T) %>%
+  mutate(
+    timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)),
+    pulse = as.numeric(Value)
+  ) %>%
+  filter(timestamp >= inclusion_timestamp & timestamp < inclusion_timestamp + hours(4)) %>%
+  group_by(EncounterKey) %>%
+  summarise(
+    pulse_freq = n()/4
+  )
+
+pulse
+```
+
