@@ -476,8 +476,8 @@ esofa <- df_timestamp %>%
   merge(esofa_bilirubin %>% select(EncounterKey, ESOFA_BILIRUBIN), by='EncounterKey', all.x=T) %>%
   merge(esofa_platelet %>% select(EncounterKey, ESOFA_PLATELET), by='EncounterKey', all.x=T) %>%
   mutate(
-    ESOFA = rowSums(select(., starts_with('ESOFA')), na.rm=T),
-    ESOFA = ifelse(ESOFA > 0, 1, 0)
+    ESOFA_COUNT = rowSums(select(., starts_with('ESOFA')), na.rm=T),
+    ESOFA_BINARY  = ifelse(ESOFA_COUNT > 0, 1, 0)
   )
 ```
 
@@ -617,105 +617,9 @@ output_df <- df_timestamp %>%
   merge(esofa %>% select('EncounterKey', contains('ESOFA')), by='EncounterKey', all.x=T) %>%
   merge(dx_trim, by='EncounterKey', all.x=T)
 
-# 
-# 
-# creatinine <- labs %>%
-#   filter(ComponentName %in% c('Creatinine', 'Creatinine, Serum')) %>%
-#   filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
-#   mutate(
-#     NumericValue = as.numeric(Value),
-#     timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
-#   ) %>%
-#   merge(df_timestamp, by='EncounterKey', all.x=T) %>%
-#   mutate(
-#     epoch_1_creatinine = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end, NumericValue, NA)
-#   ) %>%
-#   mutate(
-#     creatinine_epoch = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
-#                               1,
-#                               ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
-#                                      2,
-#                                      ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
-#                                             3,
-#                                             ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
-#                                                    4,
-#                                                    ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
-#                                                           5,
-#                                                           ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
-#                                                                  6,
-#                                                                  ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
-#                                                                         7,
-#                                                                         ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
-#                                                                                8,
-#                                                                                NA))))))))
-#   ) %>%
-#   dcast(EncounterKey ~ creatinine_epoch, value.var = "NumericValue", fun.aggregate = max) %>%
-#   select(-'NA')
-# 
-# colnames(creatinine) <- c("EncounterKey", paste0("epoch_", colnames(creatinine)[-1], "_creatinine"))
-# creatinine[creatinine == -Inf] <- NA
-# 
-# # Lactate
-# lactate <- labs %>%
-#   filter(ComponentName %in% c('Lactate, plasma')) %>%
-#   filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
-#   mutate(
-#     NumericValue = as.numeric(Value),
-#     timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
-#   ) %>%
-#   merge(df_timestamp, by='EncounterKey', all.x=T) %>%
-#   mutate(
-#     epoch_1_lactate = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end, NumericValue, NA)
-#   ) %>%
-#   mutate(
-#     lactate_epoch = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
-#                               1,
-#                               ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
-#                                      2,
-#                                      ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
-#                                             3,
-#                                             ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
-#                                                    4,
-#                                                    ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
-#                                                           5,
-#                                                           ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
-#                                                                  6,
-#                                                                  ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
-#                                                                         7,
-#                                                                         ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
-#                                                                                8,
-#                                                                                NA))))))))
-#   ) %>%
-#   dcast(EncounterKey ~ lactate_epoch, value.var = "NumericValue", fun.aggregate = max) %>%
-#   select(-'NA')
-# 
-# colnames(lactate) <- c("EncounterKey", paste0("epoch_", colnames(lactate)[-1], "_lactate"))
-# lactate[lactate == -Inf] <- NA
-
-
-# for (i in 1:16) {
-#   df_timestamp <- df_timestamp %>%
-#     left_join(
-#       creatinine %>%
-# #        filter(timestamp >= get(paste0('epoch_', i, '_begin')) & timestamp < get(paste0('epoch_', i, '_end'))) %>%
-#         filter(timestamp >= df_timestamp[[glue('epoch_{i}_begin')]] & timestamp < df_timestamp[[glue('epoch_{i}_end')]]) %>%
-#         group_by(EncounterKey) %>%
-#         # take the mean of the creatinine values for the grouped EncounterKey
-#         summarise(creatinine = mean(NumericValue)) %>%
-#         ungroup,# %>%
-#         #select(EncounterKey, timestamp, NumericValue), #%>%
-#         #rename(!!glue("epoch_{i}_creatinine") := creatinine),
-#       by='EncounterKey'
-#     )
-#   df_timestamp[[glue("epoch_{i}_creatinine")]] <- df_timestamp$creatinine
-#   df_timestamp <- df_timestamp %>%
-#     select(-creatinine)
-# }
-
-
-  
-
+write.csv(output_df, 'sepsis_r01_epoch_data.csv', row.names=F)
 ```
+
 ```{r}
 # calculate the frequency of pulse checks
 pulse <- flowsheet_assess %>%
