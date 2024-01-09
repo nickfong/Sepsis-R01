@@ -482,10 +482,6 @@ esofa <- df_timestamp %>%
 ```
 
 ```{r Create Epochs}
-# For the first four hours after timestamp, create 30-minute epochs
-# Epoch labels should be epoch_1_begin, epoch_1_end, epoch_2_begin, epoch_2_end, etc.
-# Epochs should be 30 minutes long, and should not overlap
-
 df_timestamp <- df_timestamp %>%
   mutate(
     epoch_1_begin = inclusion_timestamp,
@@ -667,17 +663,17 @@ output_df <- df_timestamp %>%
 
 write.csv(output_df, 'sepsis_r01_epoch_data.csv', row.names=F)
 ```
-```{r}
-# for each column in output_df, calculate the proportion of the column that is NA and save that to a new dataframe called prop_missing
-# then convert this dataframe from wide to long format so that it is two columns wide.  column one is the column names and column two is the proportion of NA values
+
+```{r Evaluate missingness in epoch output}
 prop_missing <- output_df %>%
   summarise_all(funs(mean(is.na(.)))) %>%
   gather(key, value)
+
+prop_missing
 ```
 
 
-```{r}
-# calculate the frequency of pulse checks
+```{r Pulse check frequency calculation}
 pulse <- flowsheet_assess %>%
   filter(FlowsheetRowDisplayName == 'Pulse') %>%
   filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
