@@ -335,7 +335,7 @@ esofa_pressors <- med_vp %>%
 
 ```{r eSOFA Mechanical Ventilation}
 # Any vasopressor administration between ED encounter and 48 hours
-esofa_mv <- resp %>%
+esofa_mv <- flowsheet_resp %>%
   filter(EncounterKey %in% ed_keys$EncounterKey) %>%
   filter(FlowsheetRowName %in% c('R RESP PEEP/CPAP SET', 'R RT VENT MODE', 'R RT MODE/BREATH TYPE')) %>%
   mutate(timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue))) %>%
