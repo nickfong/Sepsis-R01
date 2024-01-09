@@ -597,6 +597,53 @@ epochs_gcsv <- generate_vitals_epochs(flowsheet_assess, 'Best Verbal Response', 
 epochs_gcsm <- generate_vitals_epochs(flowsheet_assess, 'Best Motor Response (upper extremities)', 'gcs_motor')
 epochs_weight <- generate_vitals_epochs(flowsheet_assess, 'Weight', 'weight')
 
+generate_mar_epochs <- function(df, component_name, label) {
+  output <- df %>%
+#    filter(FlowsheetRowDisplayName == component_name) %>%
+    filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+    filter(AdministrationAction %in% c('Given', 
+                                       'Given During Downtime', 
+                                       'Given by Other', 
+                                       'MAR Unhold', 
+                                       'New Bag', 
+                                       'New Syringe', 
+                                       'Started During Downtime')) %>%
+    mutate(
+      #NumericValue = as.numeric(Value),
+      timestamp = ymd_hm(paste(AdministrationDateKeyValue, AdministrationTimeOfDayKeyValue)),
+    ) %>%
+    merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+    mutate(
+      epoch_label = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
+                                1,
+                                ifelse(timestamp >= epoch_2_begin & timestamp < epoch_2_end,
+                                       2,
+                                       ifelse(timestamp >= epoch_3_begin & timestamp < epoch_3_end,
+                                              3,
+                                              ifelse(timestamp >= epoch_4_begin & timestamp < epoch_4_end,
+                                                     4,
+                                                     ifelse(timestamp >= epoch_5_begin & timestamp < epoch_5_end,
+                                                            5,
+                                                            ifelse(timestamp >= epoch_6_begin & timestamp < epoch_6_end,
+                                                                   6,
+                                                                   ifelse(timestamp >= epoch_7_begin & timestamp < epoch_7_end,
+                                                                          7,
+                                                                          ifelse(timestamp >= epoch_8_begin & timestamp < epoch_8_end,
+                                                                                 8,
+                                                                                 NA))))))))
+    ) %>%
+    dcast(EncounterKey ~ epoch_label, value.var = "AdministrationAction", fun.aggregate = function(x) paste(x, collapse='_')) %>%
+    select(-'NA')
+  
+  colnames(output) <- c("EncounterKey", paste0("epoch_", colnames(output)[-1], "_", label))
+  output[output == -Inf] <- NA
+  output[output == ''] <- NA
+  return(output)
+}
+
+# restrict med_ab to the first 105 columns
+epochs_abx <- generate_mar_epochs(med_ab[,1:105], 'Antibiotics', 'abx')
+
 # Merge epoch dataframes
 output_df <- df_timestamp %>%
   merge(epochs_creatinine, by='EncounterKey', all.x=T) %>%
@@ -614,11 +661,20 @@ output_df <- df_timestamp %>%
   merge(epochs_gcsv, by='EncounterKey', all.x=T) %>%
   merge(epochs_gcsm, by='EncounterKey', all.x=T) %>%
   merge(epochs_weight, by='EncounterKey', all.x=T) %>%
+  merge(epochs_abx, by='EncounterKey', all.x=T) %>%
   merge(esofa %>% select('EncounterKey', contains('ESOFA')), by='EncounterKey', all.x=T) %>%
   merge(dx_trim, by='EncounterKey', all.x=T)
 
 write.csv(output_df, 'sepsis_r01_epoch_data.csv', row.names=F)
 ```
+```{r}
+# for each column in output_df, calculate the proportion of the column that is NA and save that to a new dataframe called prop_missing
+# then convert this dataframe from wide to long format so that it is two columns wide.  column one is the column names and column two is the proportion of NA values
+prop_missing <- output_df %>%
+  summarise_all(funs(mean(is.na(.)))) %>%
+  gather(key, value)
+```
+
 
 ```{r}
 # calculate the frequency of pulse checks
