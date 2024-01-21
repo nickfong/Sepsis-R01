@@ -502,9 +502,38 @@ df_timestamp <- df_timestamp %>%
     epoch_8_end = inclusion_timestamp + minutes(240),
     epoch_9_begin = inclusion_timestamp + minutes(240),
     epoch_9_end = inclusion_timestamp + minutes(270),
+    epoch_10_begin = inclusion_timestamp + minutes(270),
+    epoch_10_end = inclusion_timestamp + minutes(300),
+    epoch_11_begin = inclusion_timestamp + minutes(300),
+    epoch_11_end = inclusion_timestamp + minutes(330),
+    epoch_12_begin = inclusion_timestamp + minutes(330),
+    epoch_12_end = inclusion_timestamp + minutes(360),
+    epoch_13_begin = inclusion_timestamp + minutes(360),
+    epoch_13_end = inclusion_timestamp + minutes(390),
+    epoch_14_begin = inclusion_timestamp + minutes(390),
+    epoch_14_end = inclusion_timestamp + minutes(420),
+    epoch_15_begin = inclusion_timestamp + minutes(420),
+    epoch_15_end = inclusion_timestamp + minutes(450),
+    epoch_16_begin = inclusion_timestamp + minutes(450),
+    epoch_16_end = inclusion_timestamp + minutes(480),
+    epoch_17_begin = inclusion_timestamp + minutes(480),
+    epoch_17_end = inclusion_timestamp + minutes(510),
+    epoch_18_begin = inclusion_timestamp + minutes(510),
+    epoch_18_end = inclusion_timestamp + minutes(540),
+    epoch_19_begin = inclusion_timestamp + minutes(540),
+    epoch_19_end = inclusion_timestamp + minutes(570),
+    epoch_20_begin = inclusion_timestamp + minutes(570),
+    epoch_20_end = inclusion_timestamp + minutes(600),
+    epoch_21_begin = inclusion_timestamp + minutes(600),
+    epoch_21_end = inclusion_timestamp + minutes(630),
+    epoch_22_begin = inclusion_timestamp + minutes(630),
+    epoch_22_end = inclusion_timestamp + minutes(660),
+    epoch_23_begin = inclusion_timestamp + minutes(660),
+    epoch_23_end = inclusion_timestamp + minutes(690),
+    epoch_24_begin = inclusion_timestamp + minutes(690),
+    epoch_24_end = inclusion_timestamp + minutes(720)
   ) %>%
   merge(ed %>% dplyr::select(EncounterKey, DurationAge), by='EncounterKey', all.x = T)
-  
   
 generate_lab_epochs <- function(df, component_name, label) {
   output <- df %>%
@@ -610,6 +639,10 @@ generate_mar_epochs <- function(df, component_name, label) {
       #NumericValue = as.numeric(Value),
       timestamp = ymd_hm(paste(AdministrationDateKeyValue, AdministrationTimeOfDayKeyValue)),
     ) %>%
+    arrange(EncounterKey, timestamp) %>%
+    group_by(EncounterKey) %>%
+    slice(1) %>%
+    ungroup() %>%
     merge(df_timestamp, by='EncounterKey', all.x=T) %>%
     mutate(
       epoch_label = ifelse(timestamp >= epoch_1_begin & timestamp < epoch_1_end,
@@ -630,8 +663,38 @@ generate_mar_epochs <- function(df, component_name, label) {
                                                                                  8,
                                                                                  ifelse(timestamp >= epoch_9_begin & timestamp < epoch_9_end,
                                                                                         9,
-                                                                                        NA)
-                                                                                 ))))))))
+                                                                                        ifelse(timestamp >= epoch_10_begin & timestamp < epoch_10_end,
+                                                                                               10,
+                                                                                               ifelse(timestamp >= epoch_11_begin & timestamp < epoch_11_end,
+                                                                                                      11,
+                                                                                                      ifelse(timestamp >= epoch_12_begin & timestamp < epoch_12_end,
+                                                                                                             12,
+                                                                                                             ifelse(timestamp >= epoch_13_begin & timestamp < epoch_13_end,
+                                                                                                                    13,
+                                                                                                                    ifelse(timestamp >= epoch_14_begin & timestamp < epoch_14_end,
+                                                                                                                           14,
+                                                                                                                           ifelse(timestamp >= epoch_15_begin & timestamp < epoch_15_end,
+                                                                                                                                  15,
+                                                                                                                                  ifelse(timestamp >= epoch_16_begin & timestamp < epoch_16_end,
+                                                                                                                                         16,
+                                                                                                                                         ifelse(timestamp >= epoch_17_begin & timestamp < epoch_17_end,
+                                                                                                                                                17,
+                                                                                                                                                ifelse(timestamp >= epoch_18_begin & timestamp < epoch_18_end,
+                                                                                                                                                       18,
+                                                                                                                                                       ifelse(timestamp >= epoch_19_begin & timestamp < epoch_19_end,
+                                                                                                                                                              19,
+                                                                                                                                                              ifelse(timestamp >= epoch_20_begin & timestamp < epoch_20_end,
+                                                                                                                                                                     20,
+                                                                                                                                                                     ifelse(timestamp >= epoch_21_begin & timestamp < epoch_21_end,
+                                                                                                                                                                            21,
+                                                                                                                                                                            ifelse(timestamp >= epoch_22_begin & timestamp < epoch_22_end,
+                                                                                                                                                                                   22,
+                                                                                                                                                                                   ifelse(timestamp >= epoch_23_begin & timestamp < epoch_23_end,
+                                                                                                                                                                                          23,
+                                                                                                                                                                                          ifelse(timestamp >= epoch_24_begin & timestamp < epoch_24_end,
+                                                                                                                                                                                                 24,
+                                                                                                                                                                                                 NA
+                                                                                                                                                                                                 ))))))))))))))))))))))))
     ) %>%
     dcast(EncounterKey ~ epoch_label, value.var = "AdministrationAction", fun.aggregate = function(x) paste(x, collapse='_')) %>%
     select(-'NA')
@@ -639,6 +702,7 @@ generate_mar_epochs <- function(df, component_name, label) {
   colnames(output) <- c("EncounterKey", paste0("epoch_", colnames(output)[-1], "_", label))
   output[output == -Inf] <- NA
   output[output == ''] <- NA
+  
   return(output)
 }
 
