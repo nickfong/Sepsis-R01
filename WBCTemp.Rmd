@@ -33,7 +33,8 @@ ed <- ed %>%
   mutate(ed_timestamp = ymd_hm(paste(ArrivalDateKeyValue, ArrivalTimeOfDayKeyValue)))
 
 # Load supporting files
-base <- '~/src/Sepsis-R01/Data_All_2_2023-12-27/'
+base <- '~/src/Sepsis-R01/Data_All_2024-01-31/'
+#base <- '~/src/Sepsis-R01/Data_All_2_2023-12-27/'
 death <- fread(paste0(base, 'death.csv'))
 #ed <- fread(paste0(base, 'ed.csv'))
 enc_keys <- fread(paste0(base, 'enc_keys.csv'))
@@ -614,7 +615,7 @@ epochs_po2 <- generate_lab_epochs(labs, c('PO2'), 'po2')
 
 generate_vitals_epochs <- function(df, component_name, label) {
   output <- df %>%
-    filter(FlowsheetRowDisplayName == component_name) %>%
+    filter(FlowsheetRowDisplayName %in% component_name) %>%
     filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
     mutate(
       NumericValue = as.numeric(Value),
@@ -681,14 +682,14 @@ generate_vitals_epochs <- function(df, component_name, label) {
   return(output)
 }
 
-epochs_pulse <- generate_vitals_epochs(flowsheet_assess, 'Pulse', 'pulse')
-epochs_resp <- generate_vitals_epochs(flowsheet_assess, 'Resp', 'resp')
-epochs_temp <- generate_vitals_epochs(flowsheet_assess, 'Temp', 'temp')
-epochs_map <- generate_vitals_epochs(flowsheet_assess, 'MAP (mmHg)', 'map')
-epochs_gcse <- generate_vitals_epochs(flowsheet_assess, 'Best Eye Response', 'gcs_eye')
-epochs_gcsv <- generate_vitals_epochs(flowsheet_assess, 'Best Verbal Response', 'gcs_verbal')
-epochs_gcsm <- generate_vitals_epochs(flowsheet_assess, 'Best Motor Response (upper extremities)', 'gcs_motor')
-epochs_weight <- generate_vitals_epochs(flowsheet_assess, 'Weight', 'weight')
+epochs_pulse <- generate_vitals_epochs(flowsheet_assess, c('Pulse', 'Pulse - Palpated/Pleth'), 'pulse')
+epochs_resp <- generate_vitals_epochs(flowsheet_assess, c('Resp'), 'resp')
+epochs_temp <- generate_vitals_epochs(flowsheet_assess, c('Temp'), 'temp')
+epochs_map <- generate_vitals_epochs(flowsheet_assess, c('MAP (mmHg)', 'Arterial Line MAP (mmHg)'), 'map')
+epochs_gcse <- generate_vitals_epochs(flowsheet_assess, c('Best Eye Response'), 'gcs_eye')
+epochs_gcsv <- generate_vitals_epochs(flowsheet_assess, c('Best Verbal Response'), 'gcs_verbal')
+epochs_gcsm <- generate_vitals_epochs(flowsheet_assess, c('Best Motor Response (upper extremities)'), 'gcs_motor')
+epochs_weight <- generate_vitals_epochs(flowsheet_assess, c('Weight'), 'weight')
 
 generate_mar_epochs <- function(df, component_name, label) {
   output <- df %>%
@@ -772,26 +773,106 @@ generate_mar_epochs <- function(df, component_name, label) {
   return(output)
 }
 
+
+
 # restrict med_ab to the first 105 columns
 epochs_abx <- generate_mar_epochs(med_ab[,1:105], 'Antibiotics', 'abx')
+
+# get the last lab before inclusion 
+get_last_lab <- function(df, component_name, label) {
+  output <- df %>%
+    filter(ComponentName %in% component_name) %>%
+    filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+    mutate(
+      NumericValue = as.numeric(Value),
+      timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue))
+    ) %>%
+    merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+    filter(timestamp < inclusion_timestamp) %>%
+    arrange(EncounterKey, timestamp) %>%
+    group_by(EncounterKey) %>%
+    slice(n())
+  
+  output <- output %>% select(EncounterKey, NumericValue, timestamp) #, inclusion_timestamp)
+  
+  # rename the NumericValue column to the value of label
+  colnames(output)[colnames(output) == 'NumericValue'] <- paste0('pre_inclusion_', label)
+  colnames(output)[colnames(output) == 'timestamp'] <- paste0('pre_inclusion_', label, '_timestamp')
+  return(output)
+}
+
+last_creatinine <- get_last_lab(labs, c('Creatinine', 'Creatinine, Serum'), 'creatinine')
+last_lactate <- get_last_lab(labs, c('Lactate, plasma'), 'lactate')
+last_hemoglobin <- get_last_lab(labs, c('Hemoglobin'), 'hgb')
+last_bilirubin <- get_last_lab(labs, c('Bilirubin, Total'), 'bili')
+last_platelet <- get_last_lab(labs, c('Platelet Count'), 'plt')
+last_wbc <- get_last_lab(labs, c('WBC Count'), 'wbc')
+last_po2 <- get_last_lab(labs, c('PO2'), 'po2')
+
+# get the last vitals before inclusion 
+get_last_vitals <- function(df, component_name, label) {
+  output <- df %>%
+    filter(FlowsheetRowDisplayName == component_name) %>%
+    filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
+    mutate(
+      NumericValue = as.numeric(Value),
+      timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)),
+    ) %>%
+    merge(df_timestamp, by='EncounterKey', all.x=T) %>%
+    filter(timestamp < inclusion_timestamp) %>%
+    arrange(EncounterKey, timestamp) %>%
+    group_by(EncounterKey) %>%
+    slice(n())
+
+  output <- output %>% select(EncounterKey, NumericValue, timestamp) #, inclusion_timestamp)
+  
+  # rename the NumericValue column to the value of label
+  colnames(output)[colnames(output) == 'NumericValue'] <- paste0('pre_inclusion_', label)
+  colnames(output)[colnames(output) == 'timestamp'] <- paste0('pre_inclusion_', label, '_timestamp')
+  return(output)
+}
+
+last_pulse <- get_last_vitals(flowsheet_assess, c('Pulse', 'Pulse - Palpated/Pleth'), 'pulse')
+last_resp <- get_last_vitals(flowsheet_assess, c('Resp'), 'resp')
+last_temp <- get_last_vitals(flowsheet_assess, c('Temp'), 'temp')
+last_map <- get_last_vitals(flowsheet_assess, c('MAP (mmHg)', 'Arterial Line MAP (mmHg)'), 'map')
+last_gcse <- get_last_vitals(flowsheet_assess, c('Best Eye Response'), 'gcs_eye')
+last_gcsv <- get_last_vitals(flowsheet_assess, c('Best Verbal Response'), 'gcs_verbal')
+last_gcsm <- get_last_vitals(flowsheet_assess, c('Best Motor Response (upper extremities)'), 'gcs_motor')
+last_weight <- get_last_vitals(flowsheet_assess, c('Weight'), 'weight')
 
 # Merge epoch dataframes
 output_df <- df_timestamp %>%
   merge(epochs_creatinine, by='EncounterKey', all.x=T) %>%
+  merge(last_creatinine, by='EncounterKey', all.x=T) %>%
   merge(epochs_lactate, by='EncounterKey', all.x=T) %>%
+  merge(last_lactate, by='EncounterKey', all.x=T) %>%
   merge(epochs_hemoglobin, by='EncounterKey', all.x=T) %>%
+  merge(last_hemoglobin, by='EncounterKey', all.x=T) %>%
   merge(epochs_bilirubin, by='EncounterKey', all.x=T) %>%
+  merge(last_bilirubin, by='EncounterKey', all.x=T) %>%
   merge(epochs_platelet, by='EncounterKey', all.x=T) %>%
+  merge(last_platelet, by='EncounterKey', all.x=T) %>%
   merge(epochs_wbc, by='EncounterKey', all.x=T) %>%
+  merge(last_wbc, by='EncounterKey', all.x=T) %>%
   merge(epochs_po2, by='EncounterKey', all.x=T) %>%
+  merge(last_po2, by='EncounterKey', all.x=T) %>%
   merge(epochs_pulse, by='EncounterKey', all.x=T) %>%
+  merge(last_pulse, by='EncounterKey', all.x=T) %>%
   merge(epochs_resp, by='EncounterKey', all.x=T) %>%
+  merge(last_resp, by='EncounterKey', all.x=T) %>%
   merge(epochs_temp, by='EncounterKey', all.x=T) %>%
+  merge(last_temp, by='EncounterKey', all.x=T) %>%
   merge(epochs_map, by='EncounterKey', all.x=T) %>%
+  merge(last_map, by='EncounterKey', all.x=T) %>%
   merge(epochs_gcse, by='EncounterKey', all.x=T) %>%
+  merge(last_gcse, by='EncounterKey', all.x=T) %>%
   merge(epochs_gcsv, by='EncounterKey', all.x=T) %>%
+  merge(last_gcsv, by='EncounterKey', all.x=T) %>%
   merge(epochs_gcsm, by='EncounterKey', all.x=T) %>%
+  merge(last_gcsm, by='EncounterKey', all.x=T) %>%
   merge(epochs_weight, by='EncounterKey', all.x=T) %>%
+  merge(last_weight, by='EncounterKey', all.x=T) %>%
   merge(epochs_abx, by='EncounterKey', all.x=T) %>%
   merge(esofa %>% select('EncounterKey', contains('ESOFA')), by='EncounterKey', all.x=T) %>%
   merge(dx_trim, by='EncounterKey', all.x=T)
@@ -827,5 +908,17 @@ pulse
 ```
 ```{r Save Environment}
 save.image('sepsis_r01_environment.RData')
+```
+
+```{r}
+# examine output_df's pulse columns, counting the number of non-NA values there are
+# in epoch_1_pulse, epoch_2_pulse, epoch_3_pulse, epoch_4_pulse in a new column called pulse_count
+output_df <- output_df %>%
+  mutate(
+    pulse_count = rowSums(!is.na(select(., epoch_1_pulse, epoch_2_pulse, epoch_3_pulse, epoch_4_pulse
+                                        )))
+  )
+
+output_df %>% count(pulse_count)
 ```
 
