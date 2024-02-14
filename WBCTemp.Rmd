@@ -618,7 +618,12 @@ generate_vitals_epochs <- function(df, component_name, label) {
     filter(FlowsheetRowDisplayName %in% component_name) %>%
     filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
     mutate(
-      NumericValue = as.numeric(Value),
+      systolic = as.numeric(str_extract(Value, "^[0-9]+")),
+      # set diastolic to the second half of the string in Value after the /
+      diastolic = as.numeric(str_extract(Value, "(?<=/)[0-9]+")),
+      # calculate the map from systolic and diastolic
+      map = (systolic + 2*diastolic) / 3,
+      NumericValue = ifelse(FlowsheetRowDisplayName == 'BP', map, as.numeric(Value)),
       timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)),
     ) %>%
     merge(df_timestamp, by='EncounterKey', all.x=T) %>%
@@ -685,7 +690,7 @@ generate_vitals_epochs <- function(df, component_name, label) {
 epochs_pulse <- generate_vitals_epochs(flowsheet_assess, c('Pulse', 'Pulse - Palpated/Pleth'), 'pulse')
 epochs_resp <- generate_vitals_epochs(flowsheet_assess, c('Resp'), 'resp')
 epochs_temp <- generate_vitals_epochs(flowsheet_assess, c('Temp'), 'temp')
-epochs_map <- generate_vitals_epochs(flowsheet_assess, c('MAP (mmHg)', 'Arterial Line MAP (mmHg)'), 'map')
+epochs_map <- generate_vitals_epochs(flowsheet_assess, c('MAP (mmHg)', 'Arterial Line MAP (mmHg)', 'BP'), 'map')
 epochs_gcse <- generate_vitals_epochs(flowsheet_assess, c('Best Eye Response'), 'gcs_eye')
 epochs_gcsv <- generate_vitals_epochs(flowsheet_assess, c('Best Verbal Response'), 'gcs_verbal')
 epochs_gcsm <- generate_vitals_epochs(flowsheet_assess, c('Best Motor Response (upper extremities)'), 'gcs_motor')
@@ -815,7 +820,12 @@ get_last_vitals <- function(df, component_name, label) {
     filter(FlowsheetRowDisplayName == component_name) %>%
     filter(EncounterKey %in% df_timestamp$EncounterKey) %>%
     mutate(
-      NumericValue = as.numeric(Value),
+      systolic = as.numeric(str_extract(Value, "^[0-9]+")),
+      # set diastolic to the second half of the string in Value after the /
+      diastolic = as.numeric(str_extract(Value, "(?<=/)[0-9]+")),
+      # calculate the map from systolic and diastolic
+      map = (systolic + 2*diastolic) / 3,
+      NumericValue = ifelse(FlowsheetRowDisplayName == 'BP', map, as.numeric(Value)),
       timestamp = ymd_hm(paste(DateKeyValue, TimeOfDayKeyValue)),
     ) %>%
     merge(df_timestamp, by='EncounterKey', all.x=T) %>%
@@ -835,7 +845,7 @@ get_last_vitals <- function(df, component_name, label) {
 last_pulse <- get_last_vitals(flowsheet_assess, c('Pulse', 'Pulse - Palpated/Pleth'), 'pulse')
 last_resp <- get_last_vitals(flowsheet_assess, c('Resp'), 'resp')
 last_temp <- get_last_vitals(flowsheet_assess, c('Temp'), 'temp')
-last_map <- get_last_vitals(flowsheet_assess, c('MAP (mmHg)', 'Arterial Line MAP (mmHg)'), 'map')
+last_map <- get_last_vitals(flowsheet_assess, c('MAP (mmHg)', 'Arterial Line MAP (mmHg)', 'BP'), 'map')
 last_gcse <- get_last_vitals(flowsheet_assess, c('Best Eye Response'), 'gcs_eye')
 last_gcsv <- get_last_vitals(flowsheet_assess, c('Best Verbal Response'), 'gcs_verbal')
 last_gcsm <- get_last_vitals(flowsheet_assess, c('Best Motor Response (upper extremities)'), 'gcs_motor')
