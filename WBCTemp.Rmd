@@ -53,6 +53,13 @@ pt_keys <- fread(paste0(base, 'pt_keys.csv'))
 # Sort by collection time, not result time
 labs <- labs %>%
   mutate(timestamp = ymd_hm(paste(CollectionDateKeyValue, CollectionTimeOfDayKeyValue)))
+
+# Load imaging files
+base <- '~/src/Sepsis-R01/Imaging_2024-05-11/'
+df_imaging_all_proc <- fread(paste0(base, 'img_all_proc.csv'))
+df_imaging_lung <- fread(paste0(base, 'img_lung.csv')) %>%
+  mutate(timestamp = ymd_hms(OrderingInstant))
+df_imaging_lung_proc <- fread(paste0(base, 'img_lung_proc.csv'))
 ```
 
 ```{r WBC}
@@ -97,6 +104,17 @@ temp <- flowsheet %>%
 temp %>% ungroup %>% count(SIRS_TEMP)
 ```
 
+```{r Imaging}
+df_imaging_lung <- df_imaging_lung %>%
+  group_by(EncounterKey) %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  merge(ed %>% select(EncounterKey, ed_timestamp), by='EncounterKey', all.x=T) %>%
+  mutate(
+    FOUR_HOURS = ifelse(difftime(timestamp, ed_timestamp, units = "hours") < 4, 1, 0),
+    IMAGING = ifelse(FOUR_HOURS == 1, 1, 0)
+  )
+```
 
 ```{r}
 df <- ed_keys %>%
@@ -232,6 +250,17 @@ tabledf <- df %>%
   ) %>%
   mutate_if(is.character, 
     list(~ ifelse(grepl("^\\*|^$|^Missing$", .), NA, .))
+  ) %>%
+  merge(df_imaging_lung %>% dplyr::select(EncounterKey, IMAGING, FirstProcedureName), by='EncounterKey', all.x = T) %>%
+  mutate(
+    IMAGING = ifelse(is.na(IMAGING), 0, IMAGING),
+    include_imaging = ifelse(include == 1 & IMAGING == 1, 
+                             'Suspected Sepsis with Imaging',
+                             ifelse(include == 1,
+                                    'Suspected Sepsis No Imaging',
+                                    'No Suspected Sepsis'
+                                    )
+    )
   )
 
 columns <- c(
@@ -261,6 +290,7 @@ columns <- c(
 )
 
 nftools::nf_table1(columns, 'include', tabledf, calculate_pvalue = F)
+nftools::nf_table1(columns, 'include_imaging', tabledf, calculate_pvalue = F)
 
 tabledf$year <- tabledf$ArrivalDateKeyValue%>% year
 nftools::nf_table1(columns, 'year', tabledf, calculate_pvalue = F)
@@ -768,6 +798,7 @@ generate_mar_epochs <- function(df, component_name, label) {
                                                                                                                                                                                                  NA
                                                                                                                                                                                                  ))))))))))))))))))))))))
     ) %>%
+    as.data.table %>%
     dcast(EncounterKey ~ epoch_label, value.var = "AdministrationAction", fun.aggregate = function(x) paste(x, collapse='_')) %>%
     select(-'NA')
   
