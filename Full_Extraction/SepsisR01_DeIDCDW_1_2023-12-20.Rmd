@@ -1,0 +1,287 @@
+---
+title: "SepsisHTE_DeIDCDW"
+author: "Jean Digitale"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+#Load libraries
+library(odbc)
+library(dplyr)
+library(dbplyr)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+```{r Clear data}
+rm(list = ls())
+
+# Set date and data name
+today <- format(Sys.Date(), "%Y-%m-%d")
+data_name <- paste0("SepsisR01_UCSFDeIDCDW_", today, ".RData")
+
+# Create the folder named after today's date in the specified directory
+folder_path <- paste("/Users/jeandigitale/Library/CloudStorage/Box-Box/Sepsis_R01_UCSFDeIDCDW/Data_All_", today, sep = "")
+dir.create(folder_path, showWarnings = FALSE) # Use showWarnings = FALSE to suppress warnings if folder exists
+```
+
+```{r Load lab and flowsheet IDs}
+# Excel filepath
+excel_filepath <- "/Users/jeandigitale/Library/CloudStorage/Box-Box/Sepsis_R01_UCSFDeIDCDW/Sepsis_R01_1_SIRS_LabFlow_2023-12-03.xlsx"
+
+# Get the names of all sheets in the Excel workbook
+sheet_names <- excel_sheets(excel_filepath)
+sheet_names_keys <- grep("keys", sheet_names, value=TRUE)
+
+# Loop through each sheet and read it into a data frame
+for (i in 1:length(sheet_names_keys)) {
+  sheet_name <- sheet_names_keys[i]
+  
+  # Read the data
+  temp_data <- read_excel(excel_filepath, sheet = sheet_name)
+  
+  # Assign the data frame to a variable named after the sheet
+  assign(sheet_name, temp_data, envir = .GlobalEnv)
+  
+  # Delete temp data
+  rm(temp_data)
+}
+
+lab_keys <- lab_keys %>% 
+  select(-Pull, -N)
+```
+
+```{r Connect to DEID}
+#Connect to database
+con <- DBI::dbConnect(odbc::odbc(),
+                      driver  = "/opt/homebrew/Cellar/freetds/1.5.1/lib/libtdsodbc.so", 
+                      server    = "QCDIDDWDB001.ucsfmedicalcenter.org",
+                      database  = "CDW_NEW",
+                      uid       = "campus\\jdigitale",
+                      pwd       = rstudioapi::askForPassword("Database password"),
+                      port      = 1433
+)
+```
+
+```{r Pull duration dim, eval=FALSE}
+dur <- dbGetQuery(con, "
+    SELECT *
+    FROM deid_uf.DurationDim
+    WHERE deid_uf.DurationDim.Years >-99 AND deid_uf.DurationDim.Years < 99")
+
+write.csv(dur, paste0(folder_path, "/durationdim.csv"))
+```
+
+```{r Encounter Keys for ED Visits with Sepsis Diagnoses}
+# Date-shifting info for DeID-CDW subtracts a random number of days (0-364) from all dates of each patient: https://wiki.library.ucsf.edu/display/DCDKB/Date-shifting+in+DeID+CDW
+
+# Pull all ED visits (no date restrictions)
+ed_keys <- dbGetQuery(con, "
+    -- get ED visits
+    SELECT DISTINCT ed.EncounterKey, ed.PatientKey, ed.PatientDurableKey, ed.ArrivalDateKeyValue, ed.HospitalAdmissionKey
+    FROM deid_uf.EDVisitFact ed
+    -- join in patient information to enable restricting to adults
+    INNER JOIN deid_uf.PatientDim pd ON pd.durablekey = ed.PatientDurableKey
+    -- join in patient location data to restrict to Parnassus ED patients
+    INNER JOIN deid_uf.PatientLocationEventFact plef ON ed.EncounterKey = plef.Encounterkey
+    -- join in department names
+    INNER JOIN deid_uf.DepartmentDim dd ON dd.DepartmentKey = plef.DepartmentKey
+    -- restrict to >=18 years old
+    WHERE datediff(year, pd.birthdate, ed.ArrivalDateKeyValue) >= 18
+    -- select only current rows from PatientDim
+    AND pd.iscurrent = 1
+    -- restrict to encounters that have a location as Parnassus ED
+    AND dd.DepartmentName = 'EMERGENCY DEPT PARN'
+")
+
+# Removed date restriction:
+#    -- restrict to admissions in 2021 or 2022
+# AND year(ed.ArrivalDateKeyValue) IN (2021, 2022)
+
+# This is the key temp table to use to pull other variables - can use this to pull patient-level data by doing inner joins in SQL on PatientDurableKey or PatientKey and encounter-level data by doing inner joins in SQL on EncounterKey
+
+# There are extra observations when joining on hospital admission key instead of encounter key, but most are missing data on, for example, date/time they left the ED. Planning to exclude after discussion with Romain. 
+
+# If temp table exists, delete it
+try(dbRemoveTable(con,"##ed_keys"))
+# Write diagnosis keys as temp table
+dbWriteTable(con, "##ed_keys", ed_keys)
+```
+
+```{r Patient data}
+pt <- dbGetQuery(con, "
+    SELECT deid_uf.PatientDim.*
+    FROM deid_uf.PatientDim
+    INNER JOIN ##ed_keys
+    ON deid_uf.PatientDim.PatientKey = ##ed_keys.PatientKey")
+
+# PatDurableDim contains only 1 record per patient - it filters out all the non-current and logically deleted records from PatientDim
+# PatientDim may contain 1 or more records for each patient. To access historical values of patient's "type 2" data fields that were current eg at the time of a given Encounter, you should join the EncounterFact record with the PatientDim table based on PatientKey, not the DurableKey.
+```
+
+```{r}
+# There are some duplicate encounter keys because some diagnosis keys map onto more than one ICD10 code
+enc_dx <- dbGetQuery(con, "
+    SELECT deid_uf.EncounterFact.*, 
+      dtd.Value as icd_Value,
+      dtd.DiagnosisName as icd_diagnosisname,
+      dtd.DisplayString as icd_displaystring,
+      dtd.l1_name AS icd_l1_name,
+      dtd.l2_name AS icd_l2_name,
+      dtd.l3_name AS icd_l3_name,
+      dtd.l4_name AS icd_l4_name,
+      dtd.l5_name AS icd_l5_name,
+      dtd.l6_name AS icd_l6_name,
+      dtd.l7_name AS icd_l7_name,
+      dtd.l8_name AS icd_l8_name,
+      dtd.l9_name AS icd_l9_name
+    FROM deid_uf.EncounterFact
+    INNER JOIN ##ed_keys
+    ON deid_uf.EncounterFact.EncounterKey = ##ed_keys.EncounterKey
+    LEFT JOIN deid_uf.DiagnosisTerminologyDim as dtd
+    ON deid_uf.EncounterFact.PrimaryDiagnosisKey = dtd.DiagnosisKey
+    AND dtd.Type='ICD-10-CM'")
+```
+
+```{r Get all diagnoses for selected encounters}
+dx_all <- dbGetQuery(con, "
+    SELECT  deid_uf.DiagnosisEventFact.*, 
+            dtd.Type AS icd_type,
+            dtd.Value AS icd_value,
+            dtd.l1_name AS icd_l1_name,
+            dtd.l2_name AS icd_l2_name,
+            dtd.l3_name AS icd_l3_name,
+            dtd.l4_name AS icd_l4_name,
+            dtd.l5_name AS icd_l5_name,
+            dtd.l6_name AS icd_l6_name,
+            dtd.l7_name AS icd_l7_name,
+            dtd.l8_name AS icd_l8_name,
+            dtd.l9_name AS icd_l9_name
+    FROM deid_uf.DiagnosisEventFact
+    INNER JOIN ##ed_keys
+    ON deid_uf.DiagnosisEventFact.EncounterKey = ##ed_keys.EncounterKey
+    LEFT JOIN deid_uf.DiagnosisTerminologyDim as dtd
+    ON deid_uf.DiagnosisEventFact.DiagnosisKey = dtd.DiagnosisKey
+    WHERE dtd.Type='ICD-10-CM'") %>% 
+    arrange(PatientDurableKey, StartDateKeyValue, DiagnosisKey)
+```
+
+```{r ED data}
+ed <- dbGetQuery(con, "
+    SELECT deid_uf.EDVisitFact.*
+    FROM deid_uf.EDVisitFact
+    INNER JOIN ##ed_keys
+    ON deid_uf.EDVisitFact.EncounterKey = ##ed_keys.EncounterKey")
+
+# EdDepartmentKey=43 is Parnassus, others are children's EDs
+```
+
+```{r Hospital admission data}
+hosp_adm <- dbGetQuery(con, "
+    SELECT deid_uf.HospitalAdmissionFact.*
+    FROM deid_uf.HospitalAdmissionFact
+    INNER JOIN ##ed_keys
+    ON deid_uf.HospitalAdmissionFact.EncounterKey = ##ed_keys.EncounterKey")
+```
+
+```{r Flowsheet data}
+# If temp table exists, delete it
+try(dbRemoveTable(con, "##flowsheet_keys"))
+
+# Write flowsheet ids as temp table
+dbWriteTable(con, "##flowsheet_keys", flowsheet_row_keys)
+
+# Get first 5 values of each flowsheet measure per encounter
+flowsheet <- dbGetQuery(con, "
+  WITH RankedValues AS (
+    SELECT
+      fvf.*,
+      ROW_NUMBER() OVER (
+        PARTITION BY fvf.FlowsheetRowKey, fvf.encounterkey
+        ORDER BY fvf.DateKey, fvf.TimeofDayKey
+      ) AS rn
+    FROM
+      deid_uf.FlowsheetValueFact AS fvf
+    INNER JOIN
+      ##ed_keys AS es
+    ON
+      fvf.encounterkey = es.encounterkey
+    INNER JOIN 
+      ##flowsheet_keys AS frk
+    ON
+      frk.FlowsheetRowKey = fvf.FlowsheetRowKey
+  )
+  SELECT *
+  FROM RankedValues
+  WHERE rn <= 5
+")
+```
+
+```{r Labs}
+lab_component_keys <- lab_keys %>% 
+  select(LabComponentResultLabComponentKey) %>% 
+  rename(LabComponentKey = LabComponentResultLabComponentKey) %>% 
+  distinct()
+
+# If temp table exists, delete it
+try(dbRemoveTable(con,"##lab_component_keys"))
+# Write lab keys as temp table
+dbWriteTable(con, "##lab_component_keys", lab_component_keys)
+
+# Get first 5 values of each component ID per EncounterKey
+labs <- dbGetQuery(con, "SELECT *
+FROM (
+    SELECT 
+        lab.*,
+        ROW_NUMBER() OVER (
+        PARTITION BY lab.EncounterKey, lab.LabComponentKey 
+        ORDER BY lab.ResultDateKey, lab.ResultTimeofDayKey) as rn
+    FROM
+        deid_uf.LabComponentResultFact AS lab
+    INNER JOIN
+        ##ed_keys AS es
+    ON
+        lab.encounterkey = es.encounterkey
+    INNER JOIN
+        ##lab_component_keys AS lck
+    ON 
+        lab.LabComponentKey = lck.LabComponentKey
+) t
+WHERE t.rn <= 5")
+```
+
+```{r}
+# List of objects you want to keep
+keep <- c("folder_path", "data_name", "ed_keys", "pt", "enc_dx", "dx_all", "ed", "hosp_adm", "flowsheet", "labs")
+
+# List all objects in the environment
+all_objects <- ls()
+
+# Identify which objects should be removed
+remove <- setdiff(all_objects, keep)
+
+# Remove those objects
+rm(list=remove)
+
+# Save data
+save.image(file = file.path(folder_path, data_name))
+
+# Get the list of all objects in the environment
+all_objects <- ls()
+
+# Loop through each object to check if it is a dataframe
+for (obj_name in all_objects) {
+  obj <- get(obj_name)
+  
+  # If the object is a dataframe, write it to a CSV in the specified folder
+  if (class(obj) == "data.frame") {
+    csv_path <- paste(folder_path, "/", obj_name, ".csv", sep = "")
+    write.csv(obj, csv_path, row.names=FALSE)
+  }
+}
+```
+
