@@ -1,0 +1,61 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -N sepsis_extract
+#$ -l h_rt=4:00:00
+#$ -l mem_free=128G
+#$ -o extraction_$JOB_ID.log
+#$ -e extraction_$JOB_ID.err
+#$ -cwd
+
+# Sepsis R01 Data Extraction SGE Job
+# Extracts data from both UCSF (deid_cdw) and SFDPH (deid_cdw_sfdph)
+
+echo "========================================"
+echo "Sepsis R01 Data Extraction"
+echo "========================================"
+echo "Job ID: $JOB_ID"
+echo "Host: $(hostname)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo ""
+
+# Activate virtual environment
+source /wynton/protected/home/pirracchio/nick/Sepsis-R01/.venv/bin/activate
+
+# Change to extraction directory
+cd /wynton/protected/home/pirracchio/nick/Sepsis-R01/Full_Extraction
+
+echo "========================================"
+echo "Extracting UCSF data (deid_cdw)"
+echo "========================================"
+python -u 01_extract_data.py --data-asset deid_cdw --memory-gb 96 --threads 4
+
+UCSF_STATUS=$?
+echo ""
+echo "UCSF extraction completed with status: $UCSF_STATUS"
+echo ""
+
+echo "========================================"
+echo "Extracting SFDPH data (deid_cdw_sfdph)"
+echo "========================================"
+python -u 01_extract_data.py --data-asset deid_cdw_sfdph --memory-gb 96 --threads 4
+
+SFDPH_STATUS=$?
+echo ""
+echo "SFDPH extraction completed with status: $SFDPH_STATUS"
+echo ""
+
+echo "========================================"
+echo "Extraction Summary"
+echo "========================================"
+echo "End time: $(date)"
+echo "UCSF status: $UCSF_STATUS"
+echo "SFDPH status: $SFDPH_STATUS"
+
+if [ $UCSF_STATUS -eq 0 ] && [ $SFDPH_STATUS -eq 0 ]; then
+    echo "All extractions completed successfully!"
+    exit 0
+else
+    echo "One or more extractions failed!"
+    exit 1
+fi

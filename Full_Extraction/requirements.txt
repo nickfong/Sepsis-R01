@@ -1,0 +1,7 @@
+# Python requirements for Sepsis R01 Data Extraction
+# Install with: pip install -r requirements.txt
+
+pandas>=2.0.0
+duckdb>=0.9.0
+openpyxl>=3.1.0
+pyarrow>=10.0.0  # Required for Parquet file I/O
