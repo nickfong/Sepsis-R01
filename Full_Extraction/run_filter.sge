@@ -1,0 +1,61 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -N sepsis_filter
+#$ -l h_rt=2:00:00
+#$ -l mem_free=64G
+#$ -o filter_$JOB_ID.log
+#$ -e filter_$JOB_ID.err
+#$ -cwd
+
+# Sepsis R01 Data Filtering SGE Job
+# Filters and merges UCSF and SFDPH data
+
+# Data directory
+DATA_DIR="/wynton/protected/scratch/nick/Sepsis-R01"
+
+# Date of the extraction to filter
+EXTRACT_DATE="2025-12-19"
+
+echo "========================================"
+echo "Sepsis R01 Data Filtering"
+echo "========================================"
+echo "Job ID: $JOB_ID"
+echo "Host: $(hostname)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "Data directory: $DATA_DIR"
+echo "Extraction date: $EXTRACT_DATE"
+echo ""
+
+# Activate virtual environment
+source /wynton/protected/home/pirracchio/nick/Sepsis-R01/.venv/bin/activate
+
+# Change to extraction directory
+cd /wynton/protected/home/pirracchio/nick/Sepsis-R01/Full_Extraction
+
+echo "========================================"
+echo "Filtering and merging data"
+echo "========================================"
+python -u 02_filter_data.py \
+    -i "$DATA_DIR/Data_All_UCSF_$EXTRACT_DATE" \
+    -i "$DATA_DIR/Data_All_SFDPH_$EXTRACT_DATE" \
+    -o "$DATA_DIR/Filtered_Combined_$EXTRACT_DATE"
+
+FILTER_STATUS=$?
+echo ""
+echo "Filtering completed with status: $FILTER_STATUS"
+echo ""
+
+echo "========================================"
+echo "Filtering Summary"
+echo "========================================"
+echo "End time: $(date)"
+echo "Filter status: $FILTER_STATUS"
+
+if [ $FILTER_STATUS -eq 0 ]; then
+    echo "Filtering completed successfully!"
+    exit 0
+else
+    echo "Filtering failed!"
+    exit 1
+fi

@@ -10,6 +10,9 @@
 # Sepsis R01 Data Extraction SGE Job
 # Extracts data from both UCSF (deid_cdw) and SFDPH (deid_cdw_sfdph)
 
+# Output directory for extracted data
+OUTPUT_DIR="/wynton/protected/scratch/nick/Sepsis-R01"
+
 echo "========================================"
 echo "Sepsis R01 Data Extraction"
 echo "========================================"
@@ -28,7 +31,9 @@ cd /wynton/protected/home/pirracchio/nick/Sepsis-R01/Full_Extraction
 echo "========================================"
 echo "Extracting UCSF data (deid_cdw)"
 echo "========================================"
-python -u 01_extract_data.py --data-asset deid_cdw --memory-gb 96 --threads 4
+echo "Output directory: $OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR"
+python -u 01_extract_data.py --data-asset deid_cdw --memory-gb 96 --threads 4 --output-dir "$OUTPUT_DIR"
 
 UCSF_STATUS=$?
 echo ""
@@ -38,7 +43,7 @@ echo ""
 echo "========================================"
 echo "Extracting SFDPH data (deid_cdw_sfdph)"
 echo "========================================"
-python -u 01_extract_data.py --data-asset deid_cdw_sfdph --memory-gb 96 --threads 4
+python -u 01_extract_data.py --data-asset deid_cdw_sfdph --memory-gb 96 --threads 4 --output-dir "$OUTPUT_DIR"
 
 SFDPH_STATUS=$?
 echo ""

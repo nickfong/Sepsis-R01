@@ -120,6 +120,12 @@ Examples:
         default=4,
         help='Number of threads for DuckDB (default: 4)'
     )
+    parser.add_argument(
+        '--output-dir', '-o',
+        type=str,
+        default='.',
+        help='Base output directory for extracted data (default: current directory)'
+    )
     return parser.parse_args()
 
 
@@ -877,7 +883,7 @@ def extract_sdoh(has_sdoh: bool = True):
 
 
 def run_extraction(data_asset: str, config: dict, lab_keys: pd.DataFrame,
-                   flowsheet_row_keys: pd.DataFrame):
+                   flowsheet_row_keys: pd.DataFrame, output_dir: str = '.'):
     """Run extraction for a single data asset
 
     Args:
@@ -885,12 +891,14 @@ def run_extraction(data_asset: str, config: dict, lab_keys: pd.DataFrame,
         config: Configuration dict for this data asset
         lab_keys: DataFrame with lab component keys
         flowsheet_row_keys: DataFrame with flowsheet row keys
+        output_dir: Base directory for output (default: current directory)
     """
     global folder_path, today, asset_config
 
     asset_config = config
     today = datetime.now().strftime("%Y-%m-%d")
-    folder_path = f"Data_All_{config['folder_suffix']}_{today}"
+    folder_name = f"Data_All_{config['folder_suffix']}_{today}"
+    folder_path = os.path.join(output_dir, folder_name)
     os.makedirs(folder_path, exist_ok=True)
 
     print("\n" + "=" * 70)
@@ -1022,7 +1030,7 @@ def main():
     try:
         for data_asset in assets_to_extract:
             config = DATA_ASSETS[data_asset]
-            output_folder = run_extraction(data_asset, config, lab_keys, flowsheet_row_keys)
+            output_folder = run_extraction(data_asset, config, lab_keys, flowsheet_row_keys, args.output_dir)
             extracted_folders.append(output_folder)
 
         # Final summary
