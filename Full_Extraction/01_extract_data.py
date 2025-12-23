@@ -272,9 +272,10 @@ def create_encounter_keys(ed_department: str):
     # Debug: print column names
     print(f"  Column names: {enc_keys.columns.tolist()}")
 
-    # Save to Parquet
+    # Save to Parquet and CSV
     output_path = f"{folder_path}/enc_keys.parquet"
     enc_keys.to_parquet(output_path, index=False)
+    enc_keys.to_csv(f"{folder_path}/enc_keys.csv", index=False)
     print(f"✓ Created {len(enc_keys):,} encounter keys")
     print(f"  Saved to: {output_path}")
 
@@ -300,6 +301,7 @@ def create_patient_keys(enc_keys):
     # Save to Parquet
     output_path = f"{folder_path}/pt_keys.parquet"
     pt_keys.to_parquet(output_path, index=False)
+    pt_keys.to_csv(f"{folder_path}/pt_keys.csv", index=False)
     print(f"✓ Created {len(pt_keys):,} patient keys")
     print(f"  Saved to: {output_path}")
 
@@ -321,6 +323,7 @@ def extract_duration_dim():
     df = duckdb.sql(query).df()
     output_path = f"{folder_path}/dur.parquet"
     df.to_parquet(output_path, index=False)
+    df.to_csv(f"{folder_path}/dur.csv", index=False)
     print(f"✓ Saved {len(df):,} rows to {output_path}")
     return df
 
@@ -354,6 +357,7 @@ def extract_imaging_data():
     """
     img_all_proc = duckdb.sql(query).df()
     img_all_proc.to_parquet(f"{folder_path}/img_all_proc.parquet", index=False)
+    img_all_proc.to_csv(f"{folder_path}/img_all_proc.csv", index=False)
     print(f"  Saved img_all_proc: {len(img_all_proc):,} rows")
 
     # Lung imaging procedures (summary)
@@ -372,6 +376,7 @@ def extract_imaging_data():
     """
     img_lung_proc = duckdb.sql(query).df()
     img_lung_proc.to_parquet(f"{folder_path}/img_lung_proc.parquet", index=False)
+    img_lung_proc.to_csv(f"{folder_path}/img_lung_proc.csv", index=False)
     print(f"  ✓ Saved img_lung_proc: {len(img_lung_proc):,} rows")
 
     # Lung imaging details
@@ -386,6 +391,7 @@ def extract_imaging_data():
     """
     img_lung = duckdb.sql(query).df()
     img_lung.to_parquet(f"{folder_path}/img_lung.parquet", index=False)
+    img_lung.to_csv(f"{folder_path}/img_lung.csv", index=False)
     print(f"  ✓ Saved img_lung: {len(img_lung):,} rows")
 
     return img_all_proc, img_lung_proc, img_lung
@@ -403,6 +409,7 @@ def extract_encounter_data():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/enc.parquet", index=False)
+    df.to_csv(f"{folder_path}/enc.csv", index=False)
     print(f"✓ Saved enc: {len(df):,} rows")
     return df
 
@@ -434,6 +441,7 @@ def extract_encounter_diagnosis_data():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/enc_dx.parquet", index=False)
+    df.to_csv(f"{folder_path}/enc_dx.csv", index=False)
     print(f"✓ Saved enc_dx: {len(df):,} rows")
     return df
 
@@ -450,6 +458,7 @@ def extract_patient_data():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/pt.parquet", index=False)
+    df.to_csv(f"{folder_path}/pt.csv", index=False)
     print(f"✓ Saved pt: {len(df):,} rows")
     return df
 
@@ -466,6 +475,7 @@ def extract_ed_data():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/ed.parquet", index=False)
+    df.to_csv(f"{folder_path}/ed.csv", index=False)
     print(f"✓ Saved ed: {len(df):,} rows")
     return df
 
@@ -482,6 +492,7 @@ def extract_hospital_admission_data():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/hosp_adm.parquet", index=False)
+    df.to_csv(f"{folder_path}/hosp_adm.csv", index=False)
     print(f"✓ Saved hosp_adm: {len(df):,} rows")
     return df
 
@@ -506,6 +517,7 @@ def extract_icu_data(has_icu_registry: bool = True):
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/icu_reg.parquet", index=False)
+    df.to_csv(f"{folder_path}/icu_reg.csv", index=False)
     print(f"✓ Saved icu_reg: {len(df):,} rows")
     return df
 
@@ -550,6 +562,7 @@ def extract_diagnosis_events():
         df = df.sort_values(sort_cols)
 
     df.to_parquet(f"{folder_path}/dx_enc_icd.parquet", index=False)
+    df.to_csv(f"{folder_path}/dx_enc_icd.csv", index=False)
     print(f"✓ Saved dx_enc_icd: {len(df):,} rows")
     return df
 
@@ -567,6 +580,7 @@ def extract_antibiotics():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/med_ab.parquet", index=False)
+    df.to_csv(f"{folder_path}/med_ab.csv", index=False)
     print(f"✓ Saved med_ab: {len(df):,} rows")
     return df
 
@@ -631,6 +645,7 @@ def extract_vasopressors():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/med_vp.parquet", index=False)
+    df.to_csv(f"{folder_path}/med_vp.csv", index=False)
     print(f"✓ Saved med_vp: {len(df):,} rows")
     return df
 
@@ -697,6 +712,7 @@ def extract_flowsheet_data(flowsheet_row_keys):
 
     flowsheet_assess = duckdb.sql(query).df()
     flowsheet_assess.to_parquet(f"{folder_path}/flowsheet_assess.parquet", index=False)
+    flowsheet_assess.to_csv(f"{folder_path}/flowsheet_assess.csv", index=False)
     print(f"  ✓ Saved flowsheet_assess: {len(flowsheet_assess):,} rows")
 
     # Extract Resp flowsheet data
@@ -715,6 +731,7 @@ def extract_flowsheet_data(flowsheet_row_keys):
 
     flowsheet_resp = duckdb.sql(query).df()
     flowsheet_resp.to_parquet(f"{folder_path}/flowsheet_resp.parquet", index=False)
+    flowsheet_resp.to_csv(f"{folder_path}/flowsheet_resp.csv", index=False)
     print(f"  ✓ Saved flowsheet_resp: {len(flowsheet_resp):,} rows")
 
     return flowsheet_assess, flowsheet_resp
@@ -763,6 +780,7 @@ def extract_labs(lab_keys):
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/labs.parquet", index=False)
+    df.to_csv(f"{folder_path}/labs.csv", index=False)
     print(f"✓ Saved labs: {len(df):,} rows")
     return df
 
@@ -787,6 +805,7 @@ def extract_death_registry(has_death_registry: bool = True):
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/death.parquet", index=False)
+    df.to_csv(f"{folder_path}/death.csv", index=False)
     print(f"✓ Saved death: {len(df):,} rows")
     return df
 
@@ -805,6 +824,7 @@ def extract_insurance():
 
     df = duckdb.sql(query).df()
     df.to_parquet(f"{folder_path}/insurance.parquet", index=False)
+    df.to_csv(f"{folder_path}/insurance.csv", index=False)
     print(f"✓ Saved insurance: {len(df):,} rows")
     return df
 
@@ -833,6 +853,7 @@ def extract_sdoh(has_sdoh: bool = True):
     """
     sdoh_fact = duckdb.sql(query).df()
     sdoh_fact.to_parquet(f"{folder_path}/sdoh_fact.parquet", index=False)
+    sdoh_fact.to_csv(f"{folder_path}/sdoh_fact.csv", index=False)
     print(f"  ✓ Saved sdoh_fact: {len(sdoh_fact):,} rows")
 
     # Extract SDOH answers (linked to SDOH facts)
@@ -852,6 +873,7 @@ def extract_sdoh(has_sdoh: bool = True):
             """
             sdoh_answer = duckdb.sql(query).df()
             sdoh_answer.to_parquet(f"{folder_path}/sdoh_answer.parquet", index=False)
+            sdoh_answer.to_csv(f"{folder_path}/sdoh_answer.csv", index=False)
             print(f"  ✓ Saved sdoh_answer: {len(sdoh_answer):,} rows")
         else:
             sdoh_answer = None
@@ -869,6 +891,7 @@ def extract_sdoh(has_sdoh: bool = True):
     """
     sdoh_domain = duckdb.sql(query).df()
     sdoh_domain.to_parquet(f"{folder_path}/sdoh_domain.parquet", index=False)
+    sdoh_domain.to_csv(f"{folder_path}/sdoh_domain.csv", index=False)
     print(f"  ✓ Saved sdoh_domain: {len(sdoh_domain):,} rows")
 
     # Print summary of SDOH domains found
