@@ -67,7 +67,7 @@ SFDPH_FLOWSHEET_KEYS = {
 DATA_ASSETS = {
     'deid_cdw': {
         'name': 'UCSF DeID CDW',
-        'path': '/wynton/protected/project/ic/data/parquet/deid_cdw',
+        'path': '/media/ubuntu/HDD Storage/parquet/deid_cdw',
         'folder_suffix': 'UCSF',
         'ed_department': 'EMERGENCY DEPT PARN',
         'has_icu_registry': True,
@@ -78,7 +78,7 @@ DATA_ASSETS = {
     },
     'deid_cdw_sfdph': {
         'name': 'SFDPH DeID CDW',
-        'path': '/wynton/protected/project/ic/data/parquet/deid_cdw_sfdph',
+        'path': '/media/ubuntu/HDD Storage/parquet/deid_cdw_sfdph',
         'folder_suffix': 'SFDPH',
         'ed_department': 'ED',
         'has_icu_registry': False,
@@ -111,14 +111,14 @@ Examples:
     parser.add_argument(
         '--memory-gb', '-m',
         type=int,
-        default=96,
-        help='Memory limit for DuckDB in GB (default: 96)'
+        default=400,
+        help='Memory limit for DuckDB in GB (default: 400)'
     )
     parser.add_argument(
         '--threads', '-t',
         type=int,
-        default=4,
-        help='Number of threads for DuckDB (default: 4)'
+        default=24,
+        help='Number of threads for DuckDB (default: 24)'
     )
     parser.add_argument(
         '--output-dir', '-o',
