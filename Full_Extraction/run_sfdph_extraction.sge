@@ -1,0 +1,56 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -N sfdph_extract
+#$ -l h_rt=4:00:00
+#$ -l mem_free=128G
+#$ -o sfdph_extraction_$JOB_ID.log
+#$ -e sfdph_extraction_$JOB_ID.err
+#$ -cwd
+
+# Sepsis R01 SFDPH-only Data Extraction SGE Job
+
+# Output directory for extracted data (must match run_extraction.sge)
+OUTPUT_DIR="/wynton/protected/scratch/nick/Sepsis-R01"
+
+echo "========================================"
+echo "Sepsis R01 SFDPH Data Extraction"
+echo "========================================"
+echo "Job ID: $JOB_ID"
+echo "Host: $(hostname)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "Output directory: $OUTPUT_DIR"
+echo ""
+
+# Activate virtual environment
+source /wynton/protected/home/pirracchio/nick/Sepsis-R01/.venv/bin/activate
+
+# Change to extraction directory
+cd /wynton/protected/home/pirracchio/nick/Sepsis-R01/Full_Extraction
+
+# Create output directory if needed
+mkdir -p "$OUTPUT_DIR"
+
+echo "========================================"
+echo "Extracting SFDPH data (deid_cdw_sfdph)"
+echo "========================================"
+python -u 01_extract_data.py --data-asset deid_cdw_sfdph --memory-gb 96 --threads 4 --output-dir "$OUTPUT_DIR"
+
+SFDPH_STATUS=$?
+echo ""
+echo "SFDPH extraction completed with status: $SFDPH_STATUS"
+echo ""
+
+echo "========================================"
+echo "Extraction Summary"
+echo "========================================"
+echo "End time: $(date)"
+echo "SFDPH status: $SFDPH_STATUS"
+
+if [ $SFDPH_STATUS -eq 0 ]; then
+    echo "SFDPH extraction completed successfully!"
+    exit 0
+else
+    echo "SFDPH extraction failed!"
+    exit 1
+fi
