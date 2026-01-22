@@ -65,19 +65,40 @@ def find_ed_arrival_time(ed_df: pd.DataFrame) -> pd.DataFrame:
     """Extract ED arrival times for each encounter"""
     ed_df = standardize_columns(ed_df.copy())
 
-    # Find arrival time column
+    # Find arrival time column - prefer instant columns, otherwise combine date + time
     arrival_col = None
-    for col in ['arrivaldatekeyvalue', 'arrivalinstant', 'arrivaldate']:
+    arrival_time_of_day_col = None
+
+    # First try instant columns (already have full datetime)
+    for col in ['arrivalinstant']:
         if col in ed_df.columns:
             arrival_col = col
             break
 
+    # If no instant column, look for date + time of day columns
+    if arrival_col is None:
+        for date_col, tod_col in [('arrivaldatekeyvalue', 'arrivaltimeofdaykeyvalue'),
+                                   ('arrivaldate', 'arrivaltime')]:
+            if date_col in ed_df.columns:
+                arrival_col = date_col
+                if tod_col in ed_df.columns:
+                    arrival_time_of_day_col = tod_col
+                break
+
     if arrival_col is None:
         raise ValueError(f"Could not find arrival time column. Available: {ed_df.columns.tolist()}")
 
-    result = ed_df[['encounterkey', arrival_col]].copy()
-    result.columns = ['encounterkey', 'ed_arrival_time']
-    result['ed_arrival_time'] = parse_datetime(result['ed_arrival_time'])
+    result = ed_df[['encounterkey']].copy()
+
+    # Combine date and time if separate columns exist
+    if arrival_time_of_day_col is not None:
+        # Combine date + time of day into full datetime
+        result['ed_arrival_time'] = pd.to_datetime(
+            ed_df[arrival_col].astype(str) + ' ' + ed_df[arrival_time_of_day_col].astype(str),
+            errors='coerce'
+        )
+    else:
+        result['ed_arrival_time'] = parse_datetime(ed_df[arrival_col])
 
     return result.drop_duplicates()
 
@@ -92,20 +113,33 @@ def filter_cbc_within_window(labs_df: pd.DataFrame,
     """
     labs_df = standardize_columns(labs_df.copy())
 
-    # Find WBC results (LabComponentKey 994 is WBCCOUNT)
-    wbc_key = 994
-    wbc_labs = labs_df[labs_df['labcomponentkey'] == wbc_key].copy()
+    # Find WBC results - different keys for different data sources
+    # UCSF: LabComponentKey 994 (WBCCOUNT)
+    # SFDPH: LabComponentKey 2810 (WBC Count)
+    wbc_keys = [994, 2810]
+    wbc_labs = labs_df[labs_df['labcomponentkey'].isin(wbc_keys)].copy()
 
     if len(wbc_labs) == 0:
-        print(f"  Warning: No WBC labs found with key {wbc_key}")
+        print(f"  Warning: No WBC labs found with keys {wbc_keys}")
         return pd.DataFrame(columns=['encounterkey', 'first_cbc_time', 'first_wbc_value'])
 
-    # Find result time column
+    # Find result time column - prefer instant columns, otherwise combine date + time
     time_col = None
-    for col in ['resultinstant', 'resultdatekeyvalue', 'collectioninstant', 'collectiondatekeyvalue']:
+    time_of_day_col = None
+    for col in ['resultinstant', 'collectioninstant']:
         if col in wbc_labs.columns:
             time_col = col
             break
+
+    # If no instant column, look for date + time of day columns
+    if time_col is None:
+        for date_col, tod_col in [('resultdatekeyvalue', 'resulttimeofdaykeyvalue'),
+                                   ('collectiondatekeyvalue', 'collectiontimeofdaykeyvalue')]:
+            if date_col in wbc_labs.columns:
+                time_col = date_col
+                if tod_col in wbc_labs.columns:
+                    time_of_day_col = tod_col
+                break
 
     if time_col is None:
         raise ValueError(f"Could not find lab result time column. Available: {wbc_labs.columns.tolist()}")
@@ -120,7 +154,15 @@ def filter_cbc_within_window(labs_df: pd.DataFrame,
     if value_col is None:
         raise ValueError(f"Could not find lab value column. Available: {wbc_labs.columns.tolist()}")
 
-    wbc_labs['lab_time'] = parse_datetime(wbc_labs[time_col])
+    # Combine date and time if separate columns exist
+    if time_of_day_col is not None:
+        # Combine date + time of day into full datetime
+        wbc_labs['lab_time'] = pd.to_datetime(
+            wbc_labs[time_col].astype(str) + ' ' + wbc_labs[time_of_day_col].astype(str),
+            errors='coerce'
+        )
+    else:
+        wbc_labs['lab_time'] = parse_datetime(wbc_labs[time_col])
     wbc_labs['wbc_value'] = pd.to_numeric(wbc_labs[value_col], errors='coerce')
 
     # Merge with ED arrival times
@@ -162,16 +204,28 @@ def filter_abnormal_temp_or_wbc(flowsheet_df: pd.DataFrame,
     """
     flowsheet_df = standardize_columns(flowsheet_df.copy())
 
-    # Temperature FlowsheetRowKey is 34432
-    temp_key = 34432
-    temp_data = flowsheet_df[flowsheet_df['flowsheetrowkey'] == temp_key].copy()
+    # Temperature FlowsheetRowKey - different keys for different data sources
+    # UCSF: 34432, SFDPH: 29366
+    temp_keys = [34432, 29366]
+    temp_data = flowsheet_df[flowsheet_df['flowsheetrowkey'].isin(temp_keys)].copy()
 
-    # Find time column
+    # Find time column - prefer instant columns, otherwise combine date + time
     time_col = None
-    for col in ['takeninstant', 'recordedinstant', 'takendatekeyvalue']:
+    time_of_day_col = None
+    for col in ['takeninstant', 'recordedinstant']:
         if col in temp_data.columns:
             time_col = col
             break
+
+    # If no instant column, look for date + time of day columns
+    if time_col is None:
+        for date_col, tod_col in [('takendatekeyvalue', 'takentimeofdaykeyvalue'),
+                                   ('recordeddatekeyvalue', 'recordedtimeofdaykeyvalue')]:
+            if date_col in temp_data.columns:
+                time_col = date_col
+                if tod_col in temp_data.columns:
+                    time_of_day_col = tod_col
+                break
 
     if time_col is None and len(temp_data) > 0:
         raise ValueError(f"Could not find flowsheet time column. Available: {temp_data.columns.tolist()}")
@@ -187,7 +241,14 @@ def filter_abnormal_temp_or_wbc(flowsheet_df: pd.DataFrame,
 
     # Process temperature data
     if len(temp_data) > 0 and time_col and value_col:
-        temp_data['vital_time'] = parse_datetime(temp_data[time_col])
+        # Combine date and time if separate columns exist
+        if time_of_day_col is not None:
+            temp_data['vital_time'] = pd.to_datetime(
+                temp_data[time_col].astype(str) + ' ' + temp_data[time_of_day_col].astype(str),
+                errors='coerce'
+            )
+        else:
+            temp_data['vital_time'] = parse_datetime(temp_data[time_col])
         temp_data['temp_value'] = pd.to_numeric(temp_data[value_col], errors='coerce')
 
         # Merge with ED arrival times
@@ -251,18 +312,37 @@ def filter_chest_imaging(img_df: pd.DataFrame,
     if len(img_df) == 0:
         return pd.DataFrame(columns=['encounterkey', 'has_chest_imaging', 'first_imaging_time'])
 
-    # Find time column
+    # Find time column - prefer instant columns, otherwise combine date + time
     time_col = None
-    for col in ['orderinginstant', 'orderinstant', 'examstartinstant', 'startinstant',
-                'orderingdatekeyvalue', 'orderdatekeyvalue', 'examstartdatekeyvalue', 'startdatekeyvalue']:
+    time_of_day_col = None
+    for col in ['orderinginstant', 'orderinstant', 'examstartinstant', 'startinstant']:
         if col in img_df.columns:
             time_col = col
             break
 
+    # If no instant column, look for date + time of day columns
+    if time_col is None:
+        for date_col, tod_col in [('orderingdatekeyvalue', 'orderingtimeofdaykeyvalue'),
+                                   ('orderdatekeyvalue', 'ordertimeofdaykeyvalue'),
+                                   ('examstartdatekeyvalue', 'examstarttimeofdaykeyvalue'),
+                                   ('startdatekeyvalue', 'starttimeofdaykeyvalue')]:
+            if date_col in img_df.columns:
+                time_col = date_col
+                if tod_col in img_df.columns:
+                    time_of_day_col = tod_col
+                break
+
     if time_col is None:
         raise ValueError(f"Could not find imaging time column. Available: {img_df.columns.tolist()}")
 
-    img_df['imaging_time'] = parse_datetime(img_df[time_col])
+    # Combine date and time if separate columns exist
+    if time_of_day_col is not None:
+        img_df['imaging_time'] = pd.to_datetime(
+            img_df[time_col].astype(str) + ' ' + img_df[time_of_day_col].astype(str),
+            errors='coerce'
+        )
+    else:
+        img_df['imaging_time'] = parse_datetime(img_df[time_col])
 
     # Merge with ED arrival times
     merged = img_df.merge(ed_times_df, on='encounterkey', how='inner')
@@ -299,20 +379,32 @@ def filter_hypotension(flowsheet_df: pd.DataFrame,
     """
     flowsheet_df = standardize_columns(flowsheet_df.copy())
 
-    # Blood Pressure FlowsheetRowKey is 32710
-    bp_key = 32710
-    bp_data = flowsheet_df[flowsheet_df['flowsheetrowkey'] == bp_key].copy()
+    # Blood Pressure FlowsheetRowKey - different keys for different data sources
+    # UCSF: 32710, SFDPH: 27705
+    bp_keys = [32710, 27705]
+    bp_data = flowsheet_df[flowsheet_df['flowsheetrowkey'].isin(bp_keys)].copy()
 
     if len(bp_data) == 0:
         print("  Warning: No blood pressure data found")
         return pd.DataFrame(columns=['encounterkey', 'has_hypotension', 'first_hypotension_time', 'min_sbp'])
 
-    # Find time column
+    # Find time column - prefer instant columns, otherwise combine date + time
     time_col = None
-    for col in ['takeninstant', 'recordedinstant', 'takendatekeyvalue']:
+    time_of_day_col = None
+    for col in ['takeninstant', 'recordedinstant']:
         if col in bp_data.columns:
             time_col = col
             break
+
+    # If no instant column, look for date + time of day columns
+    if time_col is None:
+        for date_col, tod_col in [('takendatekeyvalue', 'takentimeofdaykeyvalue'),
+                                   ('recordeddatekeyvalue', 'recordedtimeofdaykeyvalue')]:
+            if date_col in bp_data.columns:
+                time_col = date_col
+                if tod_col in bp_data.columns:
+                    time_of_day_col = tod_col
+                break
 
     if time_col is None:
         raise ValueError(f"Could not find flowsheet time column. Available: {bp_data.columns.tolist()}")
@@ -327,7 +419,14 @@ def filter_hypotension(flowsheet_df: pd.DataFrame,
     if value_col is None:
         raise ValueError(f"Could not find BP value column. Available: {bp_data.columns.tolist()}")
 
-    bp_data['vital_time'] = parse_datetime(bp_data[time_col])
+    # Combine date and time if separate columns exist
+    if time_of_day_col is not None:
+        bp_data['vital_time'] = pd.to_datetime(
+            bp_data[time_col].astype(str) + ' ' + bp_data[time_of_day_col].astype(str),
+            errors='coerce'
+        )
+    else:
+        bp_data['vital_time'] = parse_datetime(bp_data[time_col])
 
     # Extract systolic BP (first number before /)
     def extract_sbp(bp_str):
@@ -482,36 +581,42 @@ def process_single_folder(input_folder: str, output_folder: str) -> pd.DataFrame
         pct = 100 * len(filtered_cohort) / len(enc_keys_df)
         print(f"\nFiltered cohort is {pct:.1f}% of total ED encounters")
 
-    # Save outputs
+    # Save outputs (parquet and CSV)
     print("\n=== Saving Results ===")
 
     # Save filtered cohort
     output_path = os.path.join(output_folder, 'filtered_cohort.parquet')
     filtered_cohort.to_parquet(output_path, index=False)
     print(f"  Saved filtered cohort: {output_path}")
+    filtered_cohort.to_csv(output_path.replace('.parquet', '.csv'), index=False)
 
     # Save hypotensive subpopulation
     filtered_hypotensive = filtered_cohort[filtered_cohort['has_hypotension']]
     output_path = os.path.join(output_folder, 'filtered_cohort_hypotensive.parquet')
     filtered_hypotensive.to_parquet(output_path, index=False)
     print(f"  Saved hypotensive subpopulation: {output_path}")
+    filtered_hypotensive.to_csv(output_path.replace('.parquet', '.csv'), index=False)
 
     # Save intermediate files for debugging/analysis
     output_path = os.path.join(output_folder, 'filtered_cbc_within_2h.parquet')
     cbc_df.to_parquet(output_path, index=False)
     print(f"  Saved CBC within 2h: {output_path}")
+    cbc_df.to_csv(output_path.replace('.parquet', '.csv'), index=False)
 
     output_path = os.path.join(output_folder, 'filtered_abnormal_temp_wbc.parquet')
     abnormal_df.to_parquet(output_path, index=False)
     print(f"  Saved abnormal temp/WBC: {output_path}")
+    abnormal_df.to_csv(output_path.replace('.parquet', '.csv'), index=False)
 
     output_path = os.path.join(output_folder, 'filtered_chest_imaging.parquet')
     imaging_df.to_parquet(output_path, index=False)
     print(f"  Saved chest imaging: {output_path}")
+    imaging_df.to_csv(output_path.replace('.parquet', '.csv'), index=False)
 
     output_path = os.path.join(output_folder, 'filtered_hypotension.parquet')
     hypotension_df.to_parquet(output_path, index=False)
     print(f"  Saved hypotension: {output_path}")
+    hypotension_df.to_csv(output_path.replace('.parquet', '.csv'), index=False)
 
     # Add source folder identifier
     folder_name = os.path.basename(input_folder)
@@ -576,16 +681,22 @@ Examples:
         combined_folder = args.output_folder or f"Filtered_Combined_{today}"
         os.makedirs(combined_folder, exist_ok=True)
 
-        # Save combined cohort
+        # Save combined cohort (parquet and CSV)
         output_path = os.path.join(combined_folder, 'filtered_cohort_combined.parquet')
         combined_cohort.to_parquet(output_path, index=False)
         print(f"  Saved combined filtered cohort: {output_path}")
+        csv_path = os.path.join(combined_folder, 'filtered_cohort_combined.csv')
+        combined_cohort.to_csv(csv_path, index=False)
+        print(f"  Saved combined filtered cohort: {csv_path}")
 
-        # Save combined hypotensive subpopulation
+        # Save combined hypotensive subpopulation (parquet and CSV)
         combined_hypo = combined_cohort[combined_cohort['has_hypotension']]
         output_path = os.path.join(combined_folder, 'filtered_cohort_hypotensive_combined.parquet')
         combined_hypo.to_parquet(output_path, index=False)
         print(f"  Saved combined hypotensive subpopulation: {output_path}")
+        csv_path = os.path.join(combined_folder, 'filtered_cohort_hypotensive_combined.csv')
+        combined_hypo.to_csv(csv_path, index=False)
+        print(f"  Saved combined hypotensive subpopulation: {csv_path}")
 
         # Summary by source
         print("\n=== Combined Cohort Summary by Source ===")
