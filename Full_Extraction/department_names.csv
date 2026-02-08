@@ -1,0 +1,633 @@
+departmentname,count,departmentspecialty,is_icu
+*Not Applicable,3153766,*Not Applicable,False
+EMERGENCY DEPT PARN,1374013,Emergency Medicine,False
+HOSP MEDICINE SVC,360857,Hospital Medicine,False
+ECG ED ADULT PRO-BIL,192839,*Unspecified,False
+14L MEDICINE,156193,Inpatient Nursing,False
+10LS CVT,135355,Inpatient Nursing,False
+CRITICAL CARE MEDICINE SVC,131813,Critical Care Medicine,True
+14M MS-HI-ACUITY,123343,Inpatient Nursing,False
+HOSP GOLDMAN MEDICAL SVC,115143,Hospital Medicine,False
+15L ADULT ACUTE CARE,96603,Inpatient Nursing,False
+9L TRANSPLANT,93188,Inpatient Nursing,False
+8L NEUROSCIENCES,83923,Inpatient Nursing,False
+ZZZCARDIOLOGY SVC,78155,Cardiology,False
+13L GEN SURG,68251,Inpatient Nursing,False
+NEPHROLOGY SVC,58254,Nephrology,False
+RAD X-RAY PARN,53513,Radiology,False
+ECG GLOBAL MC-BIL,44797,*Unspecified,False
+NEUROLOGY SVC,40461,Neurology,False
+HOSP MALIG HEME SVC,31741,Hospital Medicine,False
+7L MUSCULOSKELETAL,28553,Inpatient Nursing,False
+HOSP NIGHT HOSPITALIST SVC,27570,Hospital Medicine,False
+ECHO ADULT PARN,27418,Cardiology,False
+6L NEUR TRAN,25910,Inpatient Nursing,False
+INFECTIOUS DISEASE SVC,25625,Infectious Diseases,False
+GERIATRICS INPT SVC,24819,Geriatric Medicine,False
+5E/W ACUTE MZ,24794,*Unspecified,False
+HEPATOLOGY SVC,23565,Hepatology,False
+RAD CT PARN,23159,Radiology CT,False
+GASTROENTEROLOGY SVC,21147,Gastroenterology,False
+PALLIATIVE CARE SVC,21005,Palliative Medicine,False
+PULMONOLOGY SVC,19351,Pulmonology,False
+NEUROVASCULAR SVC,19185,Neurology,False
+8S TCU,18750,Inpatient Nursing,False
+KTU DOM TRANSPLT SVC,18603,Kidney Transplantation,False
+11L MEDSURG-ONC/BMT B,18112,Inpatient Nursing,False
+GEN CARD SVC,17816,Cardiology,False
+9NE M/S ICU,17763,Inpatient Nursing,True
+MZ 4 EAST,17316,Inpatient Nursing,False
+6L CVT,17251,Inpatient Nursing,False
+12M MED/SURG/ACUTE TCU,15995,Inpatient Nursing,False
+12L MEDSURG-ONC/BMT A,15658,Inpatient Nursing,False
+SURG DOM ENDO PARN,14749,*Unspecified,False
+7E MED/SURG,14102,Inpatient Nursing,False
+12L MUSCULOSKELETAL,13815,*Unspecified,False
+ADVANCED LUNG DISEASE SVC,13365,*Unspecified,False
+6L ADULT ACUTE CARE,13348,*Unspecified,False
+MALIGNANT HEMATOLOGY SVC,12740,Hematology and Oncology,False
+13I M/S ICU,12244,Inpatient Nursing,True
+GERIATRICS ED SVC,11991,Geriatric Medicine,False
+PSYCHIATRY SVC -OSHPD BIL,11232,*Unspecified,False
+HOSP MZ SVC,11081,Hospital Medicine,False
+PSYCHIATRY ADULT  SVC - FPO BIL,10975,Psychiatry,False
+CARDIOLOGY CONSULT SVC,10877,Cardiology,False
+ID - TRANSPLANT SVC,10490,Infectious Diseases,False
+ONCOLOGY SVC,10349,Oncology,False
+8S NEUR TRAN,9845,*Unspecified,False
+PATH SURGICAL PARN,9792,Pathology,False
+ADVANCED HEART FAIL SVC,9374,Cardiology,False
+ZZZHOSP MZ SVC,8863,Hospital Medicine,False
+RHEUMATOLOGY SVC,8600,Rheumatology,False
+6E/6N BRIDGE UNIT,8477,Inpatient Nursing,False
+6S MED/SURG,8342,*Unspecified,False
+NON-MALIGNANT HEM SVC,8324,Hematology,False
+11L MEDSURG-ONC/BMT A,8266,*Unspecified,False
+ELECTROPHYSIOLOGY SVC,7960,Cardiology,False
+HOSP CARDIOLOGY SVC,7870,Hospital Medicine,False
+MZ 5 NORTH,7774,Inpatient Nursing,False
+VASCULAR SURGERY SVC,7489,Vascular Surgery,False
+15M NEURO SPECIALTY,7288,Inpatient Nursing,False
+PSYCHIATRY SVC,7074,Psychiatry,False
+INTERVENTIONAL ENDOSCOPY SVC,6943,Gastroenterology,False
+HOSP CO-MGMT SVC,6764,Hospital Medicine,False
+CARDIAC CATH SVC,6709,Cardiology,False
+RAD ULTRASOUND PARN,6591,Radiology,False
+DERMATOLOGY SVC,6459,Dermatology,False
+A5 ONC MB,6277,Inpatient Nursing,False
+11NE NICU,5574,Inpatient Nursing,True
+GENERAL SURGERY SVC,5568,General Surgery,False
+PPU,5512,*Unspecified,False
+EMU/EPILEPSY MONITORING SVC,5239,*Unspecified,False
+ENDOCRINOLOGY SVC,5196,Endocrinology,False
+JACOBS INFECTIOUS DISEASE SVC,5052,Infectious Diseases,False
+A6 SURG MB,5008,Inpatient Nursing,False
+10NE CARD ICU,4620,Inpatient Nursing,True
+RAD MRI PARN,4533,Radiology MR,False
+CARD CRIT CARE SVC,4486,Cardiology,False
+SURG DOS GEN SURG-BIL,4478,*Unspecified,False
+LAB SOM HEMATOLOGY PARN-BIL,4467,Lab,False
+PATH SURGICAL MB,4250,Pathology,False
+HOSPITALIST MEDICINE ED TRIAGE SVC,3978,Hospital Medicine,False
+HOSP CONSULTATION SVC,3834,Hospital Medicine,False
+PERIOP PARN,3758,*Unspecified,False
+CRITICAL CARE MED-BIL,3213,Anesthesiology,True
+ZZZ12S GCRC,3180,*Unspecified,False
+PROCEDURALIST HOSP SVC,3145,Hospital Medicine,False
+LIMITED STAY UNIT,3024,*Unspecified,False
+8 NICU,2901,Inpatient Nursing,True
+GLUCOSE MGMT SVC,2846,*Unspecified,False
+PATH FNA MB 2,2751,Pathology,False
+LIVER TRANSPLANT SVC,2704,Liver Transplant,False
+HOSP MISSION BAY SVC,2615,Hospital Medicine,False
+SURG NEURO SPINE-BIL,2548,*Unspecified,False
+5 ADULT/SURG/ONC MZ,2434,*Unspecified,False
+NEUROSURGERY SVC,2380,Neurosurgery,False
+PAIN - CHRONIC SVC,2227,Anesthesiology,False
+PATH CYTOLOGY MZ - BIL,2112,Pathology,False
+L14 MEDSURG-ONC/BMT B,2105,*Unspecified,False
+PK KTU DOM TRANSPLT SVC,2044,*Unspecified,False
+OHNS SVC,2029,"Otolaryngology, Head and Neck Surgery",False
+SURG DOS VASCULAR PARN-BIL,1970,*Unspecified,False
+PAIN - ACUTE SVC,1965,Anesthesiology,False
+PED CARD STRESS LAB MB,1950,Cardiology,False
+6L PEDS/MS,1838,*Unspecified,False
+SURG NEURO GENERAL-BIL,1828,*Unspecified,False
+GYNECOLOGIC ONCOLOGY SVC,1820,Gynecologic Oncology,False
+LAB SOM CHEMISTRY – BIL,1720,*Unspecified,False
+ZZZID TRANSPLANT SVC,1693,Infectious Diseases,False
+CARDIAC SURGERY SVC,1641,Cardiothoracic Surgery,False
+HEMATOLOGY SVC,1634,Hematology,False
+SURG URO ADULT PARN-BIL,1601,*Unspecified,False
+SURG DOM OSTROFF PARN - BIL,1474,Gastroenterology,False
+KIDNEY TRANSPLANT SVC,1448,Kidney Transplantation,False
+SURG DOS CARDTHOR ADULT PARN-BIL,1409,*Unspecified,False
+ECG GLOBAL MZ-BIL,1400,*Unspecified,False
+ZZZHEPATOBILIARY MED SVC,1395,Gastroenterology,False
+7L PED/ONC/R,1378,*Unspecified,False
+PATH CYTOLOGY PARN,1331,Lab,False
+A3 L&D MB,1316,Obstetrics and Gynecology,False
+PK ADVANCED LUNG DISEASE SVC,1277,*Unspecified,False
+SURG DOM HEPATOLOGY,1275,*Unspecified,False
+INTERVENTIONAL RAD SVC,1223,Interventional Radiology,False
+6ICC,1219,Inpatient Nursing,True
+12S MEDSURG-ONC/BMT C,1215,*Unspecified,False
+PK HEPATOLOGY SVC,1184,Hepatology,False
+GYNECOLOGY SVC,1178,Gynecology,False
+SURG DOS PLASTICS PARN-BIL,1145,*Unspecified,False
+CARD STRESS LAB PARN,1127,Cardiology,False
+MZ 4 WEST ICU,1048,Inpatient Nursing,True
+RAD IR PARN,1036,Interventional Radiology,False
+PK CRITICAL CARE MEDICINE SVC-BIL,1015,Critical Care Medicine,True
+OBSTETRICS SVC,1003,Obstetrics and Gynecology,False
+PULM FUNC PARN,993,Pulmonary Function and Bronchoscopy,False
+LAB SOM IMMUNOLOGY – BIL,963,Lab,False
+ALLERGY SVC,956,Allergy and Immunology,False
+SURG ORTHO SPINE PARN-BIL,874,*Unspecified,False
+OPHTHALMOLOGY SVC,842,Ophthalmology,False
+UROLOGY SVC,833,Urology,False
+A3 M&B MB,806,Obstetrics and Gynecology,False
+PED ONC SVC,800,Pediatric Hematology and Oncology,False
+PK MALIGNANT HEMATOLOGY SVC,753,*Unspecified,False
+ZZZHEMATOLOGY/ONCOLOGY SVC,715,*Unspecified,False
+PK HOSP MALIG HEME SVC,693,*Unspecified,False
+ECG PEDS MC-BIL,675,*Unspecified,False
+NEURO-ONCOLOGY SVC,673,Neurosurgery,False
+PATH SURGICAL MZ - BIL,655,Pathology,False
+PK EMERGENCY DEPT PARN,650,Emergency Medicine,False
+HOSP ADD CONSULT SVC,649,Hospital Medicine,False
+NEURO-INTERVENTIONAL RADIOLOGY SVC,628,Neuro-Interventional Radiology,False
+PED EMERGENCY DEPT - BIL,584,*Unspecified,False
+SURG GYN - BIL,574,Reproductive Endocrinology and Infertility,False
+RAD FLUOROSCOPY PARN,542,Radiology,False
+ZZZENDOCRINOLOGY SVC,539,Endocrinology,False
+PK KIDNEY TRANSPLANT SVC,533,Kidney Transplantation,False
+RAD ONC PARN,519,Radiation Oncology,False
+ZZZGYNECOLOGIC ONCOLOGY SVC,510,Gynecologic Oncology,False
+ZZZSYMPTOM MGMT & PALLIATIVE CARE SVC,506,Palliative Medicine,False
+PK LIVER TRANSPLANT SVC,493,Liver Transplant,False
+SURG OHNS GENSURG PARN-BIL,454,*Unspecified,False
+CARD CATH PARN,448,Cardiology,False
+6E PCRC,441,*Unspecified,False
+THORACIC SURGERY SVC,433,Thoracic Surgery,False
+ZZZPEDIATRIC HOSPITAL MED SVC,421,General Pediatrics,False
+SURG DOS COLORECTAL-BIL,413,*Unspecified,False
+ORTHOPEDICS SVC,406,Orthopedic Surgery,False
+PK ECG ED ADULT PRO-BIL,403,*Unspecified,False
+ECG GLOBAL AMB-BIL,374,*Unspecified,False
+ZZZSURG ORTHO TRAUMA PROS PARN-BIL,369,*Unspecified,False
+C5 MED/SURG MB,366,Inpatient Nursing,False
+4E SURGERY MZ,365,*Unspecified,False
+NEURO OPHTH SVC,356,Ophthalmology,False
+ZZZSYMPTOM MGMT & PALLIATIVE CARE MZ SVC,356,Symptom Management,False
+PED HOSPITAL MED SVC,353,General Pediatrics,False
+C6 HEME/ONC MB,337,Inpatient Nursing,False
+PED GI/HEPATOLOGY SVC,327,Pediatric Gastroenterology,False
+ECHO ADULT MZ,325,Cardiology,False
+SURG URO ONC-BIL,318,*Unspecified,False
+PEDIATRIC CRITICAL CARE SVC,316,Pediatric Critical Care Medicine,True
+SURG ORTHO ARTHRO-BIL,308,*Unspecified,False
+RAD NUCLEAR MED PARN,307,Nuclear Medicine,False
+RAD FLUOROSCOPY MZ,302,Radiology,False
+RAD X-RAY MZ,301,Radiology,False
+A4 ICU MB,295,Inpatient Nursing,True
+VASCULAR SURG PARN,275,Vascular Surgery,False
+RAD CT MZ,262,Radiology CT,False
+LAB SOM BLOOD BANK PARN-BIL,261,Lab,False
+PK ECG GLOBAL MC-BIL,255,*Unspecified,False
+RAD PET/CT PARN,246,Radiology,False
+SURG DOS GS ENDOCRINE MZ-BIL,244,*Unspecified,False
+PK CARDIAC SURGERY SVC,242,Cardiothoracic Surgery,False
+RADIATION ONCOLOGY SVC,236,Radiation Oncology,False
+SURG ORTHO HAND-BIL,236,*Unspecified,False
+SURG ORTHO PROS PARN-BIL,234,*Unspecified,False
+PEDIATRIC NEPHROLOGY SVC,230,Pediatric Nephrology,False
+SURG ORTHO ARTHRO MZ BIL,228,*Unspecified,False
+PK ID - TRANSPLANT SVC,227,Infectious Diseases,False
+LAB SOM MOLEC CB-BIL,213,Lab,False
+PK ADVANCED HEART FAIL SVC,209,Hospital Medicine,False
+HEPA/PANC/BIL SURG SVC,206,General Surgery,False
+SURG DOM ENDO MZ,191,*Unspecified,False
+6S PICU,191,*Unspecified,True
+PATHOLOGY MOLECULAR,191,Pathology,False
+SURG OHNS-BIL,185,*Unspecified,False
+PAIN - CHRONIC-BIL,183,Anesthesiology,False
+PLASTIC SURGERY SVC,179,Plastic Surgery,False
+EMERGENCY DEPARTMENT MB,178,Emergency Medicine,False
+GENOMICS LAB MZ,178,Lab,False
+EMERGENCY DEPT MB - BIL,177,*Unspecified,False
+LAB SOM MICROBIOLOGY – BIL,177,*Unspecified,False
+RAD IR MZ,170,Interventional Radiology,False
+SURG ORTHO FOOT ANKLE-BIL,168,*Unspecified,False
+ZZZSURG ORTHO ARTHRO PARN-BIL,161,*Unspecified,False
+RAD ULTRASOUND MZ,160,Radiology,False
+PEDIATRIC ID SVC,157,Pediatric Infectious Disease,False
+PEDIATRIC PULMONOLOGY SVC,147,Pediatric Pulmonology,False
+COLORECTAL SURGERY SVC,146,Colorectal Surgery,False
+RAD ONC MZ DIVIS BASEMENT,145,Radiation Oncology,False
+PED NON ANESTH IP3 SVC,144,Pain Medicine,False
+SURG DOS ONCOLOGY-BIL,143,*Unspecified,False
+ZZZORTHO TRAUMA SVC,139,Orthopedic Surgery,False
+RAD MRI MZ,137,Radiology MR,False
+ZZZGERIATRICS HOME SVC,135,Geriatric Medicine,False
+15LS PERINATAL,135,Obstetrics and Gynecology,False
+ZZZSURG DOS COLORECTAL PARN-BIL,134,*Unspecified,False
+SURG DOS LIVER TRANS PARN-BIL,128,*Unspecified,False
+INTERVENTIONAL PULMONOLOGY SVC,127,Pulmonology,False
+SURG ORTHO OP MZ-BIL,118,*Unspecified,False
+SURG ORTHO PROS MZ BIL,118,*Unspecified,False
+SURG DOS KIDNEY TRANS PARN-BIL,118,*Unspecified,False
+ADOLESCENT MEDICINE SVC,117,Adolescent Medicine,False
+PK RAD X-RAY PARN,116,Radiology,False
+SURGICAL ONCOLOGY SVC,115,Surgical Oncology,False
+SURG DOS BREAST PLASTICS MZ-BIL,113,*Unspecified,False
+SURG OB/GYN ONC-BIL,111,*Unspecified,False
+SURG OHNS GENSURG MZ-BIL,110,*Unspecified,False
+TOXICOLOGY SVC,109,Toxicology,False
+SURG ORTHO ONC-BIL,106,*Unspecified,False
+GI MZ,106,Gastroenterology,False
+PK NEUROLOGY SVC,103,Neurology,False
+QUALITY IMPROVEMENT,102,*Unspecified,False
+SURG OPHTH RETINA AMB-BIL,102,*Unspecified,False
+ELECTROPHYSIOLOGY PARN,102,Cardiology,False
+HEM BMT PARN,101,Hematology and Oncology,False
+ZZZSURG ORTHO SPORTS PARN-BIL,101,*Unspecified,False
+PK SURG DOS CARDTHOR ADULT PARN-BIL,99,*Unspecified,False
+PEDIATRIC CARDIOLOGY SVC,99,Pediatric Cardiology,False
+PEDIATRIC ENDOCRINOLOGY SVC,99,Pediatric Endocrinology,False
+SURG ORTHO SPORTS-BIL,98,*Unspecified,False
+ZZZSURG ORTHO ONC PARN-BIL,98,*Unspecified,False
+ZZZTHORACIC SURGERY SVC,97,Thoracic Surgery,False
+GI ADVANCED ENDO MB,95,Gastroenterology,False
+SURG OHNS VC MZ-BIL,95,*Unspecified,False
+RAD NEURO IR PARN,95,Neuro-Interventional Radiology,False
+PEDS GENETICS SVC,94,Pediatric Genetics,False
+ECG GLOBAL MB-BIL,93,*Unspecified,False
+6N PICU,92,*Unspecified,True
+C6 BMT MB,92,Inpatient Nursing,False
+PK PULMONOLOGY SVC,91,Pulmonology,False
+A3 EMERGENCY L&D MB – BIL,90,Obstetrics and Gynecology,False
+PK GASTROENTEROLOGY SVC,90,Gastroenterology,False
+PK CARDIOLOGY CONSULT SVC,87,Cardiology,False
+PERIOP MZ,87,*Unspecified,False
+PK PATH SURGICAL PARN,86,Pathology,False
+PK SURG DOM ENDO PARN,85,*Unspecified,False
+ZZZSURG OHNS MZ-BIL,85,*Unspecified,False
+C4 PCTC MB,83,Inpatient Nursing,False
+PK LAB SOM HEMATOLOGY PARN-BIL,82,Lab,False
+MGBS,81,*Unspecified,False
+CARD MB,81,Cardiology,False
+PAIN - ACUTE-BIL,76,Anesthesiology,False
+7N PEDS TRAN,75,*Unspecified,False
+ZZZSURG URO ONC PARN-BIL,73,*Unspecified,False
+PK DOS LT,72,*Unspecified,False
+ZZZSURG ORTHO FOOT ANKLE PARN-BIL,71,*Unspecified,False
+PEDIATRIC NEUROLOGY SVC,71,Pediatric Neurology,False
+PED RHEUMATOLOGY SVC,69,Pediatric Rheumatology,False
+PK THORACIC SURGERY SVC,68,Thoracic Surgery,False
+ZZZSURG ORTHO HAND PARN-BIL,67,*Unspecified,False
+INTERVENTION PULM PARN,67,Pulmonary Function and Bronchoscopy,False
+PK CARDIOLOGY SVC,64,Cardiology,False
+C5 P TRANS MB,63,Inpatient Nursing,False
+ZZZPED IMMUNOLOGY SVC,59,Pediatric Immunology,False
+ED TOXICOLOGY SVC,57,Toxicology,False
+SURG OPHTH PLASTICS PARN-BIL,57,*Unspecified,False
+SURG ORTHO TRAUMA PROS MB-BIL,57,*Unspecified,False
+PRIMARY CARE LV,57,Primary Care,False
+PK NEPHROLOGY SVC,56,Nephrology,False
+CARD PARN,55,Cardiology,False
+URO SURG ONC MB 6,55,Urologic Oncology,False
+4 MEDSURG ICU MZ,54,*Unspecified,True
+ONCOLOGY SVC OLD,54,Oncology,False
+PK PULM FUNC PARN,53,Pulmonary Function and Bronchoscopy,False
+SURG OPHTH CORNEA-BIL,52,*Unspecified,False
+PK HOSP MEDICINE SVC,52,Hospital Medicine,False
+FACIAL PLAS SURG MZ,51,"Otolaryngology, Head and Neck Surgery",False
+PDC IP ULTRASOUND MB,51,Prenatal Diagnosis,False
+CARD POST PROCEDURE AHP SVC,50,Cardiology,False
+PK INFECTIOUS DISEASE SVC,49,Infectious Diseases,False
+ZZZPK ID TX SVC BIL,47,Infectious Diseases,False
+PERIOP MB,46,*Unspecified,False
+PK ECHO ADULT PARN,46,Cardiology,False
+ZZZSURG DOS ONCOLOGY MZ-BIL,45,*Unspecified,False
+PK RAD CT PARN,45,Radiology,False
+RAD ONC MB 1,45,Radiation Oncology,False
+BMT SVC,43,Hematology and Oncology,False
+PAIN MEDICINE SVC,43,Pain Medicine,False
+SURG PED GI/HEPATOLOGY SVC-BIL,42,Pediatric Gastroenterology,False
+PK ENDOCRINOLOGY SVC,41,Endocrinology,False
+UROLOGY PARN,41,Urology,False
+C4 PICU MB,41,Inpatient Nursing,True
+PK VASCULAR SURGERY SVC,40,Vascular Surgery,False
+SURG OPHTH GLAUCOMA AMB-BIL,39,*Unspecified,False
+SURG ORTHO SPORTS MB-BIL,39,*Unspecified,False
+PAIN MEDICINE MZ,38,Pain Medicine,False
+PEDIATRIC BMT SVC,38,Pediatric Bone Marrow Transplant,False
+ZZZSURG OB/GYN GYN-ONC MZ-BIL,37,*Unspecified,False
+EEG PARN,37,Neurodiagnostics,False
+ZZZPED EMERGENCY DEPT OLD,35,*Unspecified,False
+PK SURG DOS KIDNEY TRANSPLANT PARN-BIL,35,Kidney Transplantation,False
+NEUROENDOCRINOLOGY SVC,33,Neurosurgery,False
+PK DERMATOLOGY SVC,32,Dermatology,False
+OPHTH PATH PARN,32,Ophthalmology,False
+PULMONARY PARN,32,Pulmonology,False
+PED IMMUNOLOGY SVC,32,Pediatric Immunology,False
+PK GLUCOSE MGMT SVC,31,*Unspecified,False
+PERIOP ENDO PARN,31,*Unspecified,False
+SURG DOS GEN SURG PEDI PARN-BIL,31,*Unspecified,False
+PK PALLIATIVE CARE SVC,31,Palliative Medicine,False
+PK ANES ACUTE PAIN PARN-BIL,30,Anesthesiology,False
+PEDIATRIC SURGERY SVC,30,Pediatric Surgery,False
+PK RAD ULTRASOUND PARN,28,Radiology,False
+ZZZSURGICAL ONCOLOGY SVC,27,Surgical Oncology,False
+ZZZSURG DOS HEPATOBILIARY MZ-BIL,27,*Unspecified,False
+ZZZPK KTU TRNSPLT NPH SVC,27,Kidney Transplantation,False
+SURG OB/GYN FERTILITY-BIL,27,Reproductive Endocrinology and Infertility,False
+URO SURG ONC MB 4,27,Urologic Oncology,False
+PK NON-MALIGNANT HEM SVC,26,Hematology,False
+PK LAB SOM MOLEC CB-BIL,25,*Unspecified,False
+RAD ULTRASOUND PARN MB1,24,Radiology,False
+PK SURG DOM HEPATOLOGY,24,*Unspecified,False
+PK RAD IR PARN,24,Interventional Radiology,False
+GEN SURGERY MB SVC-BIL,23,*Unspecified,False
+PK CARDIAC CATH SVC,23,Cardiology,False
+SURG DOS CARDTHOR PEDI PARN-BIL,23,*Unspecified,False
+OHNS HOSPITALIST,23,"Otolaryngology, Head and Neck Surgery",False
+SURG ORTHO SPINE MB-BIL,21,*Unspecified,False
+PK LAB SOM IMMUNOLOGY – BIL,21,*Unspecified,False
+PK GENERAL SURGERY SVC,21,General Surgery,False
+RAD ONC GAMMA,21,Radiation Therapy,False
+SURG ORTHO HAND MB-BIL,20,*Unspecified,False
+SURG OPHTH GENERAL AMB-BIL,20,*Unspecified,False
+ZZZPED ECHO ML,19,Pediatric Cardiology,False
+PBC NEUROLOGY SVC,19,Pediatric Neurology,False
+PK PROCEDURALIST HOSP SVC,19,Hospital Medicine,False
+SURG OPHTH ONCOLOGY AMB-BIL,19,*Unspecified,False
+SURG DOS GS BCC MZ-BIL,19,*Unspecified,False
+PK INTERVENTIONAL ENDOSCOPY SVC,18,*Unspecified,False
+ID PARN,18,Infectious Diseases,False
+NON MALIGNANT HEM PARN,18,Hematology,False
+PK PSYCHIATRY SVC -OSHPD BIL,18,*Unspecified,False
+PK HOSP NIGHT HOSPITALIST SVC,18,Hospital Medicine,False
+CARD DBC,18,Cardiology,False
+SOD OMFS PARN S738,17,Oral Surgery,False
+PED OPHTHALMOLOGY SVC,17,Pediatric Ophthalmology,False
+NEPHROLOGY PARN,17,Nephrology,False
+SURG ORTHO FOOT ANKLE MB-BIL,17,*Unspecified,False
+SURG ORTHO PED PARN-BIL,17,*Unspecified,False
+GERIATRIC CONSULT-BIL,17,Geriatric Medicine,False
+PK ALLERGY SVC,16,Allergy and Immunology,False
+VASCULAR ULTRA,16,Vascular Lab,False
+OHNS FACIAL PLAS SURG MZ,16,OHNS Plastics,False
+ZZZUROLOGY PLEASANTON,16,Urology,False
+SURG ORTHO ARTHRO MB-BIL,15,*Unspecified,False
+GEN MED MZ 1545 1,15,General Internal Medicine,False
+SURG URO REPRODUCTIVE HEALTH PARN-BIL,15,*Unspecified,False
+ZZZOPHTH PLASTIC PARN,14,Ophthalmology,False
+GEN MED MZ 1545 2,14,General Internal Medicine,False
+ZZZSURG URO ONC MB-BIL,14,*Unspecified,False
+ZZZSURG ORTHO SPORTS MZ-BIL,14,*Unspecified,False
+PK INTERVENTIONAL RAD SVC,14,Interventional Radiology,False
+PK HEMATOLOGY SVC,13,Hematology,False
+RAD ONC CYBER,13,Radiation Therapy,False
+CARD BAYFRONT,13,Cardiology,False
+OHNS GEN OTOL MZ,13,"Otolaryngology, Head and Neck Surgery",False
+ORAL/MAXILLOFACIAL SUR SVC,13,Oral Surgery,False
+GENERAL SURG SVC OLD,13,General Surgery,False
+ZZZGERIATRICS SVC,13,Geriatric Medicine,False
+GENETICS SVC,12,Genetics,False
+SURG URO ADULT PARN MB1-BIL,12,*Unspecified,False
+SURG ORTHO PED MB-BIL,12,*Unspecified,False
+PK PSYCHIATRY ADULT SVC - BIL,12,Psychiatry,False
+PED ANESTHESIA IP3 SVC,12,Pediatrics Specialties,False
+PK PATH CYTOLOGY MZ - BIL,11,Pathology,False
+ZZZPED REHABILITATION SVC,11,Pediatric Physical Medicine and Rehabilitation,False
+PK LAB SOM MICROBIOLOGY – BIL,11,*Unspecified,False
+PULMONARY MZ,11,Pulmonology,False
+PSYCH OP ECT,11,Psychiatry,False
+ZZZOPHTH RETINA,11,Ophthalmology,False
+NEONATOLOGY SVC,11,Neonatology,False
+IMMUNOTHERAPY PCMB 5,11,Hematology and Oncology,False
+NEUROSURG ADLT PARN,11,Neurosurgery,False
+ORTHO HAND MB,11,Orthopedic Surgery,False
+GYN ONC MB 6,11,Gynecologic Oncology - Cancer Center,False
+360 POSITIVE HEALTH,11,HIV Program,False
+ZZZGI OSTROFF PARN,11,Gastroenterology,False
+PK SURG DOS GEN SURG PARN-BIL,10,*Unspecified,False
+ADULT GENETICS MB,10,Pediatric Genetics,False
+PED HEM SVC,10,Pediatric Hematology and Oncology,False
+RAD MRI MZ MB1,10,Radiology MR,False
+PSYCHIATRY PEDS SVC -BIL,10,Psychiatry,False
+ZZZSURG URO ONC MZ-BIL,10,*Unspecified,False
+RHEUM PARN,9,Rheumatology,False
+SURG DOS HEPATOBILIARY MZ-BIL,9,*Unspecified,False
+ANESTHESIOLOGY SVC,9,Anesthesiology,False
+ALLERGY PARN,9,Allergy and Immunology,False
+PK SURG DOM OSTROFF PARN - BIL,9,Gastroenterology,False
+ZZZPK HEMATOLOGY/ONCOLOGY SVC,9,*Unspecified,False
+ZZZPEDIATRIC NEUROSURGERY SVC,9,Pediatric Neurosurgery,False
+PED TRANSITIONAL CARE SVC,9,*Unspecified,False
+ZZZPEDS URGENT CARE,9,General Pediatrics,False
+PED ECHO MB,9,Pediatric Cardiology,False
+HEAD & NECK SURG MB 5,8,"Otolaryngology, Head and Neck Surgery",False
+OHNS MIN INV SKULL SURG,8,"Otolaryngology, Head and Neck Surgery",False
+GI MED ONC MB 4,8,Gastrointestinal Oncology,False
+PK PATH FNA MB 2,8,Pathology,False
+RAD ULTRASOUND WHC,8,Radiology,False
+PSYCHIATRY OP ECT -OSHPD BIL,8,*Unspecified,False
+A4 PCTC MB,8,Inpatient Nursing,False
+PED REHABILITATION SVC,8,Pediatric Physical Medicine and Rehabilitation,False
+GEN MED MZ 1701,8,General Internal Medicine,False
+ZZZOPHTH CORNEA PARN,8,Ophthalmology,False
+CARE AT HOME,8,Geriatric Medicine,False
+RAD X-RAY MB OI,7,Radiology,False
+PSYCHIATRY PEDS  SVC - FPO BIL,7,Psychiatry,False
+RAD NUCLEAR MED MZ,7,Nuclear Medicine,False
+ORTHO SURG ONC,7,Orthopedic Surgical Oncology,False
+PLAS SURG DOS GS BCC MB -BIL,7,*Unspecified,False
+GERIATRIC CARE,7,Geriatric Medicine,False
+UROLOGY RWS,7,Urology,False
+VASCULAR LAB PERIPH,7,Vascular Lab,False
+ORTHO SURG ONC MB 4,7,Orthopedic Surgical Oncology,False
+OPHTH GENERAL PARN,7,Ophthalmology,False
+MH GASTROENTEROLOGY CM,7,Gastroenterology,False
+GU MED ONC MB 6,7,Urologic Oncology,False
+CARD BOPC,7,Cardiology,False
+PERIOP ENDO MB,7,*Unspecified,False
+PK PED HEM/ONCOLOGY SVC,7,*Unspecified,False
+OBGYN MZ 5,6,Obstetrics and Gynecology,False
+CLINICAL LABS,6,Lab,False
+IMMUNOTHERAPY PARN,6,Hematology and Oncology,False
+STROKE PARN,6,Neurology,False
+PK KIDNEY POST PARN,6,Kidney Transplantation,False
+PED BERT SVC,6,Psychology,False
+PK RAD MRI PARN,6,Radiology,False
+PK CARD CRIT CARE SVC,6,Cardiology,False
+PK ADVANCED HEART FAIL PARN,6,Heart Transplant,False
+SURG OPHTH CORNEA AMB-BIL,6,*Unspecified,False
+LAB SOM CYTO CB-BIL,6,Lab,False
+OBGYN MZ 6,6,Obstetrics and Gynecology,False
+KIDNEY PRE PARN 7,5,Kidney Transplantation,False
+URO SURG ONC MZ,5,Urologic Oncology,False
+ZZZHEPATOLOGY PARN,5,Hepatology,False
+LAB SOM HEMATOLOGY MZ-BIL,5,Lab,False
+ENDO SURG MZ,5,Endocrine Surgery,False
+PK SURG DOS PLASTICS PARN-BIL,5,*Unspecified,False
+RAD CT PARN MB1,5,Radiology CT,False
+ADULT ECHO MB 6,5,Cardiology,False
+SURG OPHTH NEURO AMB-BIL,5,*Unspecified,False
+INTERVENTION PULM MZ CC4,5,Pulmonology,False
+OPHTH GENERAL MB 490 FL4,5,Ophthalmology,False
+AMBULATORY CALL CENTER,5,*Unspecified,False
+PK PATH CYTOLOGY PARN,5,Pathology,False
+PK EMU/EPILEPSY MONITORING SVC,5,*Unspecified,False
+PK SURG DOS CARDTHOR PEDI PARN-BIL,5,*Unspecified,False
+PEDIATRIC DERMATOLOGY SVC,5,Pediatric Dermatology,False
+ORTHO FOOT ANKLE MB,4,Orthopedic Surgery,False
+ORTHO SPINE PARN,4,Orthopedic Surgery,False
+SURG OPHTH PEDIATRICS AMB-BIL,4,*Unspecified,False
+PED ID MB,4,Pediatric Infectious Disease,False
+RAD ONC HDR MB 1,4,Radiation Therapy,False
+ECG STRESS LAB ADULT ACC,4,Cardiology,False
+PHARM INPATIENT PARN,4,Pharmacy,False
+PSYCH AFTER HOURS -OSHPD BIL,4,*Unspecified,False
+PK SURG URO ADULT PARN-BIL,4,*Unspecified,False
+PK SURG OHNS VC MZ-BIL,4,*Unspecified,False
+PSYCH IP PARN -OSHPD BIL,4,*Unspecified,False
+PK UROLOGY SVC,4,Urology,False
+PK CRITICAL CARE MED-BIL,4,Critical Care Medicine,True
+ZZZPEDIATRIC SEDATION SVC,4,Pediatric Anesthesiology,False
+PK GEN CARD SVC,4,Cardiology,False
+PK PEDIATRIC NEPHROLOGY SVC,4,Pediatric Nephrology,False
+ZZZSURG ORTHO FOOT ANKLE MZ-BIL,4,*Unspecified,False
+DERM FAC MZ DIVIS 4,4,Dermatology,False
+ENDO BAYFRONT,4,Endocrinology and Metabolism,False
+ZZZOPHTH OPTOM PARN MB1,4,Optometry,False
+SURG OHNS GENSURG AMB-BIL,4,*Unspecified,False
+MH PRMRY CARE GB,4,Internal Medicine,False
+NEURO PARN,4,Neurology,False
+ZZZ360 POS HEALTH OLD,4,HIV Program,False
+SURGERY PARN,4,General Surgery,False
+SURG OPHTH PLASTICS AMB-BIL,4,*Unspecified,False
+SURG PED GI/HEPATOLOGY MB-BIL,4,Pediatric Gastroenterology,False
+PK ECG GLOBAL AMB-BIL,3,*Unspecified,False
+PK PED EMERGENCY DEPT - BIL,3,*Unspecified,False
+PK SURG DOS VASCULAR PARN-BIL,3,*Unspecified,False
+SURG OB/GYN WOMENS OPTIONS MZ - BIL,3,Obstetrics and Gynecology,False
+CARD PULM HTN,3,Cardiology,False
+ZZZANTICOAG MB2,3,Anticoagulation,False
+ENDOCRINE SURGERY SVC,3,Endocrine Surgery,False
+COLORECTAL SURG MB 4,3,Colorectal Surgery,False
+GI SURG ONC MB 6,3,Surgical Oncology,False
+MH INTERNAL MED PETA,3,Internal Medicine,False
+SURG OHNS PEDI MB-BIL,3,*Unspecified,False
+OP CLIN LAB MB 5,3,Lab,False
+OHNS SINUS MZ,3,"Otolaryngology, Head and Neck Surgery",False
+BREAST MED ONC MB 3,3,Breast Care - Cancer Center,False
+ADVANCED HEART FAIL PARN,3,Heart Transplant,False
+ADULT INFUSION PCMB 4,3,Infusion and Transfusion,False
+OHNS VOICE MZ POST,3,"Otolaryngology, Head and Neck Surgery",False
+MH OHNS SR,3,"Otolaryngology, Head and Neck Surgery",False
+PK LAB SOM CHEMISTRY – BIL,3,*Unspecified,False
+PK ANES ICU PAIN PARN-BIL,3,Anesthesiology,True
+PED FETAL ECHO MB,3,Pediatric Cardiology,False
+PED CARDIOTHORACIC SURG SVC,3,Pediatric Cardiothoracic Surgery,False
+PDC MB,3,Prenatal Diagnosis,False
+RAD PET/CT CB,3,Radiology,False
+RAD MAMMOGRAPHY MZ,3,Radiology,False
+PK PATH SURGICAL MB,3,Pathology,False
+PED GENETICS MB,3,Pediatric Genetics,False
+PSYCH ONC SVC,3,Psychology - Cancer Center,False
+ZZZPK ENDOCRINOLOGY SVC,3,Endocrinology,False
+PK INTERVENTION PULM MZ CC4,3,Pulmonology,False
+PK PAIN - CHRONIC SVC,3,*Unspecified,False
+PK HOSP GOLDMAN MEDICAL SVC,3,Hospital Medicine,False
+PK PEDIATRIC SURGERY SVC,3,Pediatric Surgery,False
+PK SURG DOS COLORECTAL PARN-BIL,2,*Unspecified,False
+OSHER SVC,2,Integrative Medicine,False
+PK NEUROSURGERY SVC,2,Neurosurgery,False
+PK SURG DOM ENDO MZ,2,*Unspecified,False
+PK ELECTROPHYSIOLOGY SVC,2,Cardiology,False
+PK NEURO OPHTH SVC,2,Ophthalmology,False
+PK NEUROVASCULAR SVC,2,*Unspecified,False
+PK OHNS SVC,2,"Otolaryngology, Head and Neck Surgery",False
+PULM OPTIMAL ADLT,2,Pulmonology,False
+PK ECG PEDS MC-BIL,2,*Unspecified,False
+PK RAD NUCLEAR MED PARN,2,Nuclear Medicine,False
+PK RHEUMATOLOGY SVC,2,Rheumatology,False
+PK RAD FLUOROSCOPY PARN,2,Radiology,False
+PK SURG URO ONC-BIL,2,*Unspecified,False
+PHOTOPHERESIS PARN,2,Hematology and Oncology,False
+PSYCH ATTENDING LP AIP - FPO BIL,2,Psychiatry,False
+PK SURG GYN MZ - BIL,2,Reproductive Endocrinology and Infertility,False
+RESPIRATORY SVC,2,Respiratory Therapy,False
+ADULT INFUSION PCMB 5,2,Infusion and Transfusion,False
+OL OHNS PEDS CHO IP-BIL,2,*Unspecified,False
+ORTHO PROS MB,2,Orthopedic Surgery,False
+SURG OHNS PEDI AMB-BIL,2,*Unspecified,False
+KIDNEY POST PARN,2,Kidney Transplantation,False
+PK SURG OHNS GENSURG PARN-BIL,2,*Unspecified,False
+GI MED ONC MZ CC4,2,Gastrointestinal Oncology,False
+ZZZOPHTH GLAUCOMA PARN,2,Ophthalmology,False
+SURG URO PEDS PARN-BIL,2,*Unspecified,False
+HEMODIALYSIS PARN,2,Dialysis,False
+CC CIP SFOMG WEB OTO,2,"Otolaryngology, Head and Neck Surgery",False
+SURG OHNS COCHLEAR PARN-BIL,2,*Unspecified,False
+PED CARD MODESTO,1,Pediatric Cardiology,False
+PED CARD STRESS LAB - BIL,1,Pediatric Cardiology,False
+RAD CT CB,1,Radiology CT,False
+PERIOP BAYFRONT,1,Periop,False
+PLASTICS MB,1,Plastic Surgery,False
+"PEDS OTOLARYNGOLOGY, HEAD & NECK SURGERY SVC",1,"Pediatric Otolaryngology, Head and Neck Surgery",False
+PROCTOR GROUP,1,Ophthalmology,False
+PSYCH PHP ADULT - FPO BIL,1,Psychiatry,False
+PED ONCOLOGY MB,1,Pediatric Oncology,False
+PED CARD MARIN,1,Pediatric Cardiology,False
+PERIOP PARN OSC,1,Periop,False
+PK VASCULAR SURG PARN,1,Vascular Surgery,False
+PK SURG OPHTH PLASTICS PARN-BIL,1,*Unspecified,False
+PK THORACIC SURG ONC MZ 4,1,Thoracic Surgery,False
+PK HOSP MISSION BAY SVC,1,*Unspecified,False
+ZZZPED HEART PARN,1,Pediatric Cardiology,False
+ZZZPEDS FETAL ECHO,1,Pediatric Cardiology,False
+PK INTERVENTION PULM PARN,1,Pulmonary Function and Bronchoscopy,False
+PK PATHOLOGY CCGL,1,Pathology,False
+PK OHNS HOSPITALIST,1,"Otolaryngology, Head and Neck Surgery",False
+PK PEDIATRIC ID SVC,1,Pediatric Infectious Disease,False
+PK PEDIATRIC CRITICAL CARE SVC,1,Pediatric Critical Care Medicine,True
+PK RADIATION ONCOLOGY SVC,1,Radiation Oncology,False
+PK GERIATRICS INPT SVC,1,Geriatric Medicine,False
+PK RAD PET/CT CB,1,Radiology,False
+PED RHEUMATOLOGY MB,1,Pediatric Rheumatology,False
+RAD X-RAY PARN MB1,1,Radiology,False
+RAD ULTRASOUND MB,1,Radiology,False
+RAD ONC MB 4,1,Radiation Oncology,False
+RAD MEG ML,1,Radiology,False
+PED CARDIAC CATH MB,1,Pediatric Cardiology,False
+NEURO SPINE PARN 2,1,Neurosurgery,False
+MH NEPHROLOGY GB,1,Nephrology,False
+ORTHO SPINE MB,1,Orthopedic Surgery,False
+ORTHO SPORTS MB,1,Orthopedic Surgery,False
+REPRO PROCEDURE CTR MB,1,Reproductive Endocrinology and Infertility,False
+MELANOMA MED ONC MB 3,1,Melanoma,False
+MH CARDIOVASC LKS,1,Cardiology,False
+OHNS OTOLOGY MZ,1,"Otolaryngology, Head and Neck Surgery",False
+APHERESIS PARN,1,Infusion and Transfusion,False
+OL PED EB GEN SURG CHO IP,1,*Unspecified,False
+ILD PARN,1,Pulmonology,False
+WOMENS HEALTH MZ,1,Primary Care,False
+HEP PARN 7,1,Hepatology,False
+THORACIC  MED ONC MZ CC4,1,Thoracic Oncology,False
+SYMPTOM MGMNT MB 6,1,Symptom Management,False
+SYMPTOM MGMNT MB 4,1,Symptom Management,False
+CARD FAC BOPC,1,Cardiology,False
+SURG URO REPRODUCTIVE HEALTH MZ-BIL,1,*Unspecified,False
+GU MED ONC MZ CC3,1,Urologic Oncology,False
+CARD SAN MATEO,1,Cardiology,False
+ZZZBREAST PLAS MZ CC2,1,Breast Care - Cancer Center,False
+DIALYSIS MZ,1,Dialysis,False
+ENDO FAC PARN,1,Endocrinology and Metabolism,False
+ZZZOL PDC MONTEREY,1,Prenatal Diagnosis,False
+ZZZOB PARN,1,Obstetrics and Gynecology,False
+ZZZPALLIATIVE CARE PARN 6,1,Palliative Medicine,False
+ZZZPODIATRY GERIATRICS,1,Podiatry,False

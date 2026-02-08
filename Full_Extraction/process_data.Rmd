@@ -1,0 +1,245 @@
+---
+title: "SepsisHTE_DeIDCDW - Data Processing from CSV"
+author: "Jean Digitale (Modified for CSV input)"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+#Load libraries
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+```{r Setup paths}
+rm(list = ls())
+
+# Set date and data name
+today <- format(Sys.Date(), "%Y-%m-%d")
+data_name <- paste0("HTESepsis_UCSFDeIDCDW_All_", today, ".RData")
+
+# Input folder path - should match the folder created by extract_data.py
+input_folder <- paste("Data_All_", today, sep = "")
+
+# Check if input folder exists
+if (!dir.exists(input_folder)) {
+  stop(paste("Input folder not found:", input_folder,
+             "\nPlease run extract_data.py first to download the data."))
+}
+
+# Output folder (same as input for now, or could be different)
+output_folder <- input_folder
+
+cat("Reading data from:", input_folder, "\n")
+cat("Output will be saved to:", output_folder, "\n")
+```
+
+```{r Load lab and flowsheet IDs}
+# Excel filepath
+excel_filepath <- "Sepsis_R01_LabFlow_2023-11-29.xlsx"
+
+# Get the names of all sheets in the Excel workbook
+sheet_names <- excel_sheets(excel_filepath)
+sheet_names_keys <- grep("keys", sheet_names, value=TRUE)
+
+# Loop through each sheet and read it into a data frame
+for (i in 1:length(sheet_names_keys)) {
+  sheet_name <- sheet_names_keys[i]
+
+  # Read the data
+  temp_data <- read_excel(excel_filepath, sheet = sheet_name)
+
+  # Assign the data frame to a variable named after the sheet
+  assign(sheet_name, temp_data, envir = .GlobalEnv)
+
+  # Delete temp data
+  rm(temp_data)
+}
+
+lab_keys <- lab_keys %>%
+  select(-Pull, -N)
+```
+
+```{r Load encounter keys}
+# Load encounter keys from CSV (extracted by Python script)
+cat("Loading encounter keys...\n")
+enc_keys <- read.csv(file.path(input_folder, "enc_keys.csv"))
+cat("  Loaded", nrow(enc_keys), "encounter keys\n")
+```
+
+```{r Load duration dim}
+# Load duration dimension from CSV
+cat("Loading duration dimension...\n")
+dur <- read.csv(file.path(input_folder, "dur.csv"))
+cat("  Loaded", nrow(dur), "duration records\n")
+```
+
+```{r Imaging data}
+# Load imaging data from CSVs
+cat("Loading imaging data...\n")
+img_all_proc <- read.csv(file.path(input_folder, "img_all_proc.csv"))
+img_lung_proc <- read.csv(file.path(input_folder, "img_lung_proc.csv"))
+img_lung <- read.csv(file.path(input_folder, "img_lung.csv"))
+cat("  Loaded img_all_proc:", nrow(img_all_proc), "rows\n")
+cat("  Loaded img_lung_proc:", nrow(img_lung_proc), "rows\n")
+cat("  Loaded img_lung:", nrow(img_lung), "rows\n")
+```
+
+
+```{r Load encounter data}
+# Load encounter data from CSV
+cat("Loading encounter data...\n")
+enc <- read.csv(file.path(input_folder, "enc.csv"))
+cat("  Loaded", nrow(enc), "encounter records\n")
+```
+
+```{r Load encounter data with primary diagnosis}
+# There are some duplicate encounter keys because some diagnosis keys map onto more than one ICD10 code
+cat("Loading encounter data with primary diagnosis...\n")
+enc_dx <- read.csv(file.path(input_folder, "enc_dx.csv"))
+cat("  Loaded", nrow(enc_dx), "encounter diagnosis records\n")
+```
+
+```{r Load patient keys}
+# Load patient keys from CSV
+cat("Loading patient keys...\n")
+pt_keys <- read.csv(file.path(input_folder, "pt_keys.csv"))
+cat("  Loaded", nrow(pt_keys), "patient keys\n")
+```
+
+```{r Load patient data}
+# Load patient data from CSV
+cat("Loading patient data...\n")
+pt <- read.csv(file.path(input_folder, "pt.csv"))
+cat("  Loaded", nrow(pt), "patient records\n")
+
+# PatDurableDim contains only 1 record per patient - it filters out all the non-current and logically deleted records from PatientDim
+# PatientDim may contain 1 or more records for each patient. To access historical values of patient's "type 2" data fields that were current eg at the time of a given Encounter, you should join the EncounterFact record with the PatientDim table based on PatientKey, not the DurableKey.
+```
+
+```{r Load ED data}
+# Load ED visit data from CSV
+cat("Loading ED visit data...\n")
+ed <- read.csv(file.path(input_folder, "ed.csv"))
+cat("  Loaded", nrow(ed), "ED visit records\n")
+
+# EdDepartmentKey=43 is Parnassus, others are children's EDs
+```
+
+```{r Load hospital admission data}
+# Load hospital admission data from CSV
+cat("Loading hospital admission data...\n")
+hosp_adm <- read.csv(file.path(input_folder, "hosp_adm.csv"))
+cat("  Loaded", nrow(hosp_adm), "hospital admission records\n")
+```
+
+```{r Load ICU stay registry data}
+# Load ICU stay registry data from CSV
+cat("Loading ICU stay registry data...\n")
+icu_reg <- read.csv(file.path(input_folder, "icu_reg.csv"))
+cat("  Loaded", nrow(icu_reg), "ICU stay records\n")
+```
+
+```{r Load diagnosis events}
+# Load all diagnosis events for selected encounters from CSV
+cat("Loading diagnosis event data...\n")
+dx_enc_icd <- read.csv(file.path(input_folder, "dx_enc_icd.csv"))
+
+# DuckDB may return lowercase column names, so handle both cases
+if ("patientdurablekey" %in% tolower(names(dx_enc_icd))) {
+  # Find actual column names (case-insensitive)
+  patient_durable_col <- names(dx_enc_icd)[tolower(names(dx_enc_icd)) == "patientdurablekey"]
+  start_date_col <- names(dx_enc_icd)[tolower(names(dx_enc_icd)) == "startdatekeyvalue"]
+  diagnosis_col <- names(dx_enc_icd)[tolower(names(dx_enc_icd)) == "diagnosiskey"]
+
+  # Arrange using actual column names
+  dx_enc_icd <- dx_enc_icd %>%
+    arrange(.data[[patient_durable_col]], .data[[start_date_col]], .data[[diagnosis_col]])
+} else {
+  # Standard case - columns already properly cased
+  dx_enc_icd <- dx_enc_icd %>%
+    arrange(PatientDurableKey, StartDateKeyValue, DiagnosisKey)
+}
+
+cat("  Loaded", nrow(dx_enc_icd), "diagnosis event records\n")
+```
+
+```{r Load antibiotics}
+# Load antibiotic medication data from CSV
+cat("Loading antibiotic medications...\n")
+med_ab <- read.csv(file.path(input_folder, "med_ab.csv"))
+cat("  Loaded", nrow(med_ab), "antibiotic records\n")
+```
+
+```{r Load vasopressors}
+# Vasopressors: Norepinephrine, Vasopressin, Epinephrine, Dobutamine,
+# Milrinone, Phenylephrine, Dopamine
+# Filtered to IV route only (done in extraction script)
+
+cat("Loading vasopressor medications...\n")
+med_vp <- read.csv(file.path(input_folder, "med_vp.csv"))
+cat("  Loaded", nrow(med_vp), "vasopressor records\n")
+```
+
+```{r Load flowsheet data}
+# Load flowsheet data from CSVs (already filtered by type in extraction script)
+cat("Loading flowsheet data...\n")
+flowsheet_assess <- read.csv(file.path(input_folder, "flowsheet_assess.csv"))
+flowsheet_resp <- read.csv(file.path(input_folder, "flowsheet_resp.csv"))
+cat("  Loaded flowsheet_assess:", nrow(flowsheet_assess), "rows\n")
+cat("  Loaded flowsheet_resp:", nrow(flowsheet_resp), "rows\n")
+```
+
+```{r Load labs}
+# Load lab data from CSV
+cat("Loading lab data...\n")
+labs <- read.csv(file.path(input_folder, "labs.csv"))
+cat("  Loaded", nrow(labs), "lab records\n")
+```
+
+```{r Load death registry}
+# Load death registry data from CSV
+cat("Loading death registry data...\n")
+death <- read.csv(file.path(input_folder, "death.csv"))
+cat("  Loaded", nrow(death), "death records\n")
+```
+
+```{r Load insurance}
+# Load insurance/coverage data from CSV
+cat("Loading insurance data...\n")
+insurance <- read.csv(file.path(input_folder, "insurance.csv"))
+cat("  Loaded", nrow(insurance), "insurance records\n")
+
+# PayorFinancialClass is the insurance variable to use per UCSF Business team
+```
+
+```{r Save processed data}
+# List of data objects to keep
+keep <- c("input_folder", "output_folder", "data_name", "enc_keys", "pt_keys",
+          "pt", "enc", "enc_dx", "ed", "hosp_adm", "icu_reg", "dx_enc_icd",
+          "med_ab", "med_vp", "flowsheet_assess", "flowsheet_resp", "labs",
+          "death", "insurance", "dur", "img_all_proc", "img_lung_proc", "img_lung",
+          "lab_keys", "flowsheet_row_keys")
+
+# List all objects in the environment
+all_objects <- ls()
+
+# Identify which objects should be removed
+remove <- setdiff(all_objects, keep)
+
+# Remove temporary objects
+rm(list = remove)
+
+# Save R workspace
+cat("\nSaving R workspace...\n")
+save.image(file = file.path(output_folder, data_name))
+cat("  Saved to:", file.path(output_folder, data_name), "\n")
+
+cat("\nData processing complete!\n")
+cat("All data loaded from:", input_folder, "\n")
+cat("R workspace saved to:", file.path(output_folder, data_name), "\n")
+```
