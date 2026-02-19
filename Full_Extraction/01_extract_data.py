@@ -16,51 +16,245 @@ import pandas as pd
 import duckdb
 from datetime import datetime
 
-# SFDPH Lab Component Keys (different from UCSF)
-# These were identified by querying the raw SFDPH labcomponentresultfact table
+# SFDPH Lab Component Keys
+# Verified by querying raw SFDPH labcomponentresultfact joined with ED encounters
+# Old 16xxx-17xxx range keys were wrong; correct keys are in 2000-9000 range
 SFDPH_LAB_KEYS = {
-    'WBC Count': 17512,
-    'Hemoglobin': 16682,
-    'Hematocrit': 16678,
-    'MCV': 16885,
-    'RBC Count': 17221,
-    'MCHC': 16884,
-    'MCH': 16883,
-    'Platelet Count': 17135,
-    'Auto Abs Neutrophil': 16284,
-    'Auto Abs Basophil': 16279,
-    'Auto Abs Eosinophil': 16280,
-    'Auto Abs Lymphocyte': 16282,
-    'Auto Abs Monocyte': 16283,
-    'Creatinine': 5744,
+    # CBC
+    'WBC Count': 2810,
+    'Hemoglobin': 3165,
+    'Hematocrit': 3815,
+    'MCV': 4459,
+    'RBC Count': 2654,
+    'MCHC': 4458,
+    'MCH': 4457,
+    'Platelet Count': 6230,
+    # Auto Differentials
+    'Absolute Neutrophils': 3866,
+    'Absolute Basophils': 3173,
+    'Absolute Eosinophils': 3172,
+    'Absolute Lymphocytes': 3170,
+    'Absolute Monocytes': 3171,
+    'Absolute Large Lymphocytes': 8192,
+    # BMP
+    'Creatinine, Serum': 5744,
     'Potassium': 3097,
     'Sodium': 3099,
     'Calcium': 3908,
     'BUN': 3911,
     'CO2': 3063,
     'Chloride': 3100,
-    'Glucose': 2235,
-    'Albumin': 16215,
-    'ALT': 16226,
-    'Lactate': 2810,  # WBC in CSF but also Lactate
+    'Glucose, Non Fasting': 2235,
+    'Glucose, Fingerstick': 9989,
+    'Glucose WB': 2581,
+    'Anion Gap (No K)': 8181,
+    # Liver Panel
+    'ALT': 8176,
+    'AST': 3060,
+    'Alkaline Phosphatase': 3053,
+    'Total Bilirubin': 3095,
+    'Bilirubin, Direct': 3941,
+    'Total Protein': 3094,
+    'Albumin, Serum g/dL': 6273,
+    # Blood Gas / Lactate
+    'Lactate, Whole Blood': 17901,
+    'Lactate, Venous': 9964,
+    'pO2': 8426,
+    'Venous pO2': 3916,
+    # Renal
+    'eGFR Low Estimate': 18016,
+    'eGFR High Estimate': 18017,
+    # Coagulation
+    'INR': 8379,
+    'Prothrombin Time': 17997,
+    'Activated PTT': 17998,
+    'Fibrinogen': 4173,
+    # Cardiac
+    'Troponin I': 3132,
+    'Troponin I High Sensitivity': 18007,
+    # Inflammatory
+    'Procalcitonin': 1734,
+    'CRP, High sensitivity': 3873,
+    # Electrolytes (additional)
+    'Magnesium': 3745,
+    'Phosphorus': 8421,
+    'Ionized Calcium': 3909,
+    # Other
+    'Hemoglobin A1C': 3082,
+}
+
+# UCSF Lab Component Keys
+# Existing keys from Sepsis_R01_LabFlow_2023-11-29.xlsx plus newly discovered keys
+# from querying raw UCSF labcomponentresultfact
+UCSF_LAB_KEYS = {
+    # CBC
+    'WBC Count': 994,
+    'Hemoglobin': 5345,
+    'Hematocrit': 5346,
+    'RBC Count': 970,
+    'MCV': 950,
+    'MCH': 948,
+    'MCHC': 949,
+    'Platelet Count': 967,
+    'POCT, Total Hemoglobin': 32195,
+    'Hemoglobin, Plasma, Alternative Method': 21555,
+    'POCT, Total Hemoglobin (Oximetry)': 21968,
+    # Auto Differentials
+    'Abs Eosinophils': 926,
+    'Abs Basophils': 910,
+    'Abs Lymphocytes': 944,
+    'Abs Neutrophils': 959,
+    'Abs Monocytes': 955,
+    # BMP
+    'Creatinine': 586,
+    'Creatinine (POCT)': 587,
+    'Sodium': 5276,
+    'Potassium': 5274,
+    'Calcium': 6110,
+    'Urea Nitrogen': 5238,
+    'Bicarbonate': 569,
+    'Chloride': 5277,
+    'Glucose': 4399,
+    'Anion Gap': 563,
+    # Liver Panel
+    'AST': 5236,
+    'Alanine transaminase': 5230,
+    'Alkaline Phosphatase': 5229,
+    'Bilirubin, Total': 7497,
+    'Bilirubin, Direct': 12120,
+    'Total Protein': 5271,
+    'Albumin': 2444,
+    # Blood Gas / Lactate
+    'Lactate, blood': 653,
+    'Lactate, plasma': 5975,
+    'PO2': 683,
+    'PO2, Venous': 25090,
+    # Renal
+    'eGFR High Estimate': 594,
+    'eGFR Low Estimate': 595,
+    # Coagulation
+    'INR': 759,
+    'aPTT': 2420,
+    'Prothrombin Time': 49399,
+    'Fibrinogen, Functional': 6042,
+    # Cardiac
+    'Troponin I': 2467,
+    # Inflammatory
+    'Procalcitonin': 25350,
+    'CRP': 5993,
+    # Electrolytes (additional)
+    'Magnesium': 5948,
+    'Phosphorus': 5886,
+    # Ionized Calcium
+    'Calcium, Ionized, whole blood': 573,
+    'Calcium, Ionized, Serum/Plasma': 2458,
+    # Other
+    'Hemoglobin A1c': 2469,
 }
 
 # SFDPH Flowsheet Row Keys (different from UCSF)
 # These were identified by querying the raw SFDPH flowsheetvaluefact table
+# Organized into Assess (vitals) and Resp (respiratory) types, matching UCSF structure
 SFDPH_FLOWSHEET_KEYS = {
-    # Vitals for assessment
+    # --- Assess (Vitals) ---
     'Temp': 29366,
     'BP': 27705,
-    'SpO2': 2,
+    'SpO2': 2,                          # PULSE OXIMETRY
     'Pulse': 33278,
     'Resp': 33957,
     'MAP': 18911,
-    'HR-ECG': 1479,
-    # Respiratory
+    'HR-ECG': 1479,                     # R AN HEART RATE ECG
+    'Weight/Scale': 9079,
+    'GCS Eye': 14847,                   # R DPH ED GCS ADULT BEST EYE RESPONSE
+    'GCS Verbal': 14848,                # R DPH ED GCS ADULT BEST VERBAL RESPONSE
+    'GCS Motor': 14849,                 # R DPH ED GCS ADULT BEST MOTOR RESPONSE
+    'GCS Score': 14850,                 # R DPH ED GCS ADULT SCORE
+    'GCS Numeric Score': 14855,         # R DPH ED GCS NUMERIC SCORE
+    'Pulse from SpO2': 34185,           # R ZSFG PULSE FROM SPO2
+    'MAP A-Line': 18900,
+    'MAP A-Line 2': 24384,
+    'Pulse from Art Line': 34223,       # R ZSFG PULSE FROM ART LINE
+    'Pulse Ox Type': 20691,             # R PULSE OXIMETRY TYPE
+    'RASS': 21357,                      # R RICHMOND AGITATION SEDATION SCALE
+    'ED RASS': 15204,                   # ED RASS
+    'DPH CV RASS': 50318,              # DPH CV RASS (cardiac)
+    'Pain Score': 21066,                # DPH R PAIN SCORE
+    'Pain Score (Category)': 15593,     # PAIN SCORE (CATEGORY LIST)
+    'GCS Trigger': 23619,               # ZSFG R ADULT OR PEDIATIRC GCS TRIGGER ROW?
+    'ED GCS Calculator': 13093,         # R ED CLINICAL CALCULATOR - GLASGOW COMA SCALE SCORE
+    'Art Line BP': 18901,               # R ARTERIAL LINE BLOOD PRESSURE
+    'Art Line BP 2': 18903,             # R ARTERIAL LINE BLOOD PRESSURE 2
+    # --- Respiratory ---
     'O2': 1421,
-    'Vent Mode': 1427,
+    'Vent Mode (AN)': 1427,             # R AN VENT MODE (anesthesia)
     'etCO2': 1442,
     'Resp Rate-Vent': 1615,
+    'FiO2': 18934,                      # R FIO2
+    'Vent PEEP': 18942,                 # R VENT PEEP
+    'Vent Tidal Volume Set': 18938,     # R VENT TIDAL VOLUME SET
+    'Vent Tidal Volume Spont': 24757,   # R VENT TIDAL VOLUME SPONT
+    'Vent I:E Ratio': 26144,            # R VENT I:E RATIO
+    'IP Vent Mode': 20251,              # R IP VENT MODE
+    'PEEP Measured': 32956,             # R DPH RT PEEP MEASURED
+    'PEEP/CPAP Set': 24764,             # R RESP PEEP/CPAP SET
+    'RR Set': 24772,                    # R RESP RR SET
+    'Tidal Volume Mech': 33036,         # R DPH TIDAL VOLUME MECH
+    'Tidal Volume ML/KG Mech': 33037,   # R DPH TIDAL VOLUME ML/KG MECH
+    'Tidal Volume Spont (DPH)': 33079,  # R DPH RT TIDAL VOLUME SPONT
+    'Minute Volume Measured': 33038,    # R DPH MINUTE VOLUME MEASURED
+    'Minute Volume Spont': 33081,       # R DPH MINUTE VOLUME SPONT
+    'PaO2/FiO2 Ratio': 33524,          # R DPH RT PAO2/FIO2 RATIO
+    'Press Support': 33071,             # R DPH PRESS SUPPORTABOVEPEEP
+    'Oxygen Therapy': 22553,            # R OXYGEN THERAPY
+    'Vent EtCO2': 18944,               # R VENT ETCO2
+    'Resp Rate EtCO2': 19,             # R ZSFG RESP RATE ETCO2
+}
+
+# UCSF Flowsheet Row Keys
+# Existing keys from Sepsis_R01_LabFlow_2023-11-29.xlsx plus newly discovered keys
+# from querying raw UCSF flowsheetvaluefact
+UCSF_FLOWSHEET_KEYS = {
+    # --- Assess (Vitals) ---
+    'Weight/Scale': 5106,
+    'Respirations': 39413,
+    'Blood Pressure': 32710,
+    'Temperature': 34432,
+    'Pulse': 38524,
+    'Pulse - Palpated or Pleth': 8369,
+    'MAP': 16489,
+    'MAP A-Line': 16478,
+    'Art Line BP': 16479,               # R ARTERIAL LINE BLOOD PRESSURE
+    'Art Line BP 2': 16481,             # R ARTERIAL LINE BLOOD PRESSURE 2
+    'GCS Eye': 8550,                    # R CPN ADULT GLASGOW COMA SCALE EYE OPENING
+    'GCS Verbal': 30983,                # R CPN ADULT GLASGOW COMA SCALE BEST VERBAL RESPONSE
+    'GCS Motor': 8554,                  # R CPN GLASGOW COMA SCALE BEST MOTOR RESPONSE
+    'GCS Score': 30984,                 # R CPN GLASGOW COMA SCALE SCORE
+    'GCS Score V2': 105926,             # R CPN GLASGOW COMA SCALE SCORE V2
+    'Pain Score': 18412,                # R IP PAIN SCORE
+    'Pain Score (Category)': 9258,      # PAIN SCORE (CATEGORY LIST)
+    'RASS': 30034,                      # R RICHMOND AGITATION SEDATION SCALE
+    # --- Respiratory ---
+    'FiO2': 16511,
+    'FiO2 2': 41880,
+    'PEEP/CPAP Set': 28730,
+    'RT Vent Mode': 35186,              # R RT VENT MODE
+    'RT Mode/Breath Type': 34086,       # R RT MODE/BREATH TYPE
+    'RT Vent RR Total': 36316,          # R RT VENTILATOR RESPIRATORY RATE TOTAL
+    'RT MAP Measured': 19958,           # RT MAP MEASURED_IP_CD_UCSF
+    'RT Adult Vent Type': 36279,        # R RT (ADULT) VENT TYPE
+    'RT Minute Volume V2': 41884,       # R RT VENTILATOR MINUTE VOLUME MEASURED V2
+    'RT Tidal Volume Exhaled': 36317,   # R RT (ADULT) VENTILATOR TIDAL VOLUME EXHALED
+    'RT I:E Ratio': 36324,              # R RT (ADULT) VENTILATOR I:E RATIO MEASURED
+    'OSI': 47494,                       # R OXYGEN SATURATION INDEX (OSI)
+    'RR Set': 28738,                    # R RESP RR SET
+    'O2 Device (ED)': 8653,             # ED R O2 DEVICE
+    'O2 Delivery Device': 100298,       # UCSF R AN O2 DELIVERY DEVICE
+    'O2 Delivery Ventilation': 100297,  # UCSF R AN O2 DELIVERY VENTILATION
+    'Pressure Support': 36304,          # R RT VENTILATOR PRESSURE SUPPORT
+    'PaO2/FiO2 Ratio': 47495,          # R PAO2/FIO2 RATIO
+    'EtCO2 (AN)': 2300,                # UCSF R ANE END TIDAL CO2
+    'EtCO2 (RT)': 36568,               # R RT ETCO2
+    'CPOT': 41883,                      # R CPOT VENT OR VOCAL COMPLIANCE IP_CD_UCSF
 }
 
 # Data asset configurations
@@ -73,8 +267,8 @@ DATA_ASSETS = {
         'has_icu_registry': True,
         'has_death_registry': True,
         'has_sdoh': True,
-        'lab_keys_source': 'excel',  # Use Excel file for lab keys
-        'flowsheet_keys_source': 'excel',  # Use Excel file for flowsheet keys
+        'lab_keys_source': 'ucsf_dict',
+        'flowsheet_keys_source': 'ucsf_dict',
     },
     'deid_cdw_sfdph': {
         'name': 'SFDPH DeID CDW',
@@ -662,28 +856,56 @@ def extract_flowsheet_data(flowsheet_row_keys):
 
     if flowsheet_keys_source == 'sfdph_dict':
         # Use SFDPH flowsheet keys dictionary
-        # Assess keys: Temp, BP, SpO2, Pulse, Resp, MAP, HR-ECG
-        assess_keys_list = [
-            SFDPH_FLOWSHEET_KEYS['Temp'],
-            SFDPH_FLOWSHEET_KEYS['BP'],
-            SFDPH_FLOWSHEET_KEYS['SpO2'],
-            SFDPH_FLOWSHEET_KEYS['Pulse'],
-            SFDPH_FLOWSHEET_KEYS['Resp'],
-            SFDPH_FLOWSHEET_KEYS['MAP'],
-            SFDPH_FLOWSHEET_KEYS['HR-ECG'],
+        assess_key_names = [
+            'Temp', 'BP', 'SpO2', 'Pulse', 'Resp', 'MAP', 'HR-ECG',
+            'Weight/Scale', 'GCS Eye', 'GCS Verbal', 'GCS Motor',
+            'GCS Score', 'GCS Numeric Score', 'Pulse from SpO2',
+            'MAP A-Line', 'MAP A-Line 2', 'Pulse from Art Line',
+            'Pulse Ox Type', 'RASS', 'ED RASS', 'DPH CV RASS',
+            'Pain Score', 'Pain Score (Category)', 'GCS Trigger',
+            'ED GCS Calculator', 'Art Line BP', 'Art Line BP 2',
         ]
-        # Resp keys: O2, Vent Mode, etCO2, Resp Rate-Vent
-        resp_keys_list = [
-            SFDPH_FLOWSHEET_KEYS['O2'],
-            SFDPH_FLOWSHEET_KEYS['Vent Mode'],
-            SFDPH_FLOWSHEET_KEYS['etCO2'],
-            SFDPH_FLOWSHEET_KEYS['Resp Rate-Vent'],
+        resp_key_names = [
+            'O2', 'Vent Mode (AN)', 'etCO2', 'Resp Rate-Vent',
+            'FiO2', 'Vent PEEP', 'Vent Tidal Volume Set',
+            'Vent Tidal Volume Spont', 'Vent I:E Ratio', 'IP Vent Mode',
+            'PEEP Measured', 'PEEP/CPAP Set', 'RR Set',
+            'Tidal Volume Mech', 'Tidal Volume ML/KG Mech',
+            'Tidal Volume Spont (DPH)', 'Minute Volume Measured',
+            'Minute Volume Spont', 'PaO2/FiO2 Ratio', 'Press Support',
+            'Oxygen Therapy', 'Vent EtCO2', 'Resp Rate EtCO2',
         ]
+        assess_keys_list = [SFDPH_FLOWSHEET_KEYS[k] for k in assess_key_names]
+        resp_keys_list = [SFDPH_FLOWSHEET_KEYS[k] for k in resp_key_names]
         print(f"  Using SFDPH flowsheet keys dictionary")
         assess_keys_df = pd.DataFrame({'FlowsheetRowKey': assess_keys_list})
         resp_keys_df = pd.DataFrame({'FlowsheetRowKey': resp_keys_list})
+    elif flowsheet_keys_source == 'ucsf_dict':
+        # Use UCSF flowsheet keys dictionary
+        assess_key_names = [
+            'Weight/Scale', 'Respirations', 'Blood Pressure', 'Temperature',
+            'Pulse', 'Pulse - Palpated or Pleth', 'MAP', 'MAP A-Line',
+            'Art Line BP', 'Art Line BP 2',
+            'GCS Eye', 'GCS Verbal', 'GCS Motor',
+            'GCS Score', 'GCS Score V2',
+            'Pain Score', 'Pain Score (Category)', 'RASS',
+        ]
+        resp_key_names = [
+            'FiO2', 'FiO2 2', 'PEEP/CPAP Set',
+            'RT Vent Mode', 'RT Mode/Breath Type', 'RT Vent RR Total',
+            'RT MAP Measured', 'RT Adult Vent Type', 'RT Minute Volume V2',
+            'RT Tidal Volume Exhaled', 'RT I:E Ratio', 'OSI', 'RR Set',
+            'O2 Device (ED)', 'O2 Delivery Device', 'O2 Delivery Ventilation',
+            'Pressure Support', 'PaO2/FiO2 Ratio',
+            'EtCO2 (AN)', 'EtCO2 (RT)', 'CPOT',
+        ]
+        assess_keys_list = [UCSF_FLOWSHEET_KEYS[k] for k in assess_key_names]
+        resp_keys_list = [UCSF_FLOWSHEET_KEYS[k] for k in resp_key_names]
+        print(f"  Using UCSF flowsheet keys dictionary")
+        assess_keys_df = pd.DataFrame({'FlowsheetRowKey': assess_keys_list})
+        resp_keys_df = pd.DataFrame({'FlowsheetRowKey': resp_keys_list})
     else:
-        # Use Excel-based flowsheet keys (UCSF)
+        # Use Excel-based flowsheet keys (fallback)
         type_col = find_column(flowsheet_row_keys, 'Type')
         flowsheet_key_col = find_column(flowsheet_row_keys, 'FlowsheetRowKey')
 
@@ -753,8 +975,14 @@ def extract_labs(lab_keys):
             'LabComponentKey': list(SFDPH_LAB_KEYS.values())
         })
         print(f"  Using SFDPH lab keys dictionary ({len(lab_component_keys)} keys)")
+    elif lab_keys_source == 'ucsf_dict':
+        # Use UCSF lab keys dictionary
+        lab_component_keys = pd.DataFrame({
+            'LabComponentKey': list(UCSF_LAB_KEYS.values())
+        })
+        print(f"  Using UCSF lab keys dictionary ({len(lab_component_keys)} keys)")
     else:
-        # Use Excel-based lab keys (UCSF)
+        # Use Excel-based lab keys (fallback)
         lab_comp_col = find_column(lab_keys, 'LabComponentResultLabComponentKey')
 
         if not lab_comp_col:
@@ -983,11 +1211,13 @@ def run_extraction(data_asset: str, config: dict, lab_keys: pd.DataFrame,
         'flowsheet_resp': flowsheet_resp,
         'labs': labs,
         'insurance': insurance,
-        'lab_keys': lab_keys,
-        'flowsheet_row_keys': flowsheet_row_keys,
     }
 
     # Add optional tables if they exist
+    if lab_keys is not None:
+        tables_to_register['lab_keys'] = lab_keys
+    if flowsheet_row_keys is not None:
+        tables_to_register['flowsheet_row_keys'] = flowsheet_row_keys
     if icu_reg is not None:
         tables_to_register['icu_reg'] = icu_reg
     if death is not None:
@@ -1029,16 +1259,28 @@ def main():
     # Configure DuckDB
     configure_duckdb(args.memory_gb, args.threads)
 
-    # Excel file path for lab and flowsheet keys
-    excel_filepath = "Sepsis_R01_LabFlow_2023-11-29.xlsx"
+    # Check if any data asset still needs Excel keys
+    if args.data_asset == 'all':
+        assets_to_check = list(DATA_ASSETS.keys())
+    else:
+        assets_to_check = [args.data_asset]
 
-    if not os.path.exists(excel_filepath):
-        print(f"\n✗ ERROR: Excel file not found: {excel_filepath}")
-        print("Please ensure the file is in the current directory.")
-        sys.exit(1)
+    needs_excel = any(
+        DATA_ASSETS[a].get('lab_keys_source') == 'excel' or
+        DATA_ASSETS[a].get('flowsheet_keys_source') == 'excel'
+        for a in assets_to_check
+    )
 
-    # Load lab and flowsheet keys from Excel (shared across data assets)
-    lab_keys, flowsheet_row_keys = load_lab_flowsheet_keys(excel_filepath)
+    lab_keys, flowsheet_row_keys = None, None
+    if needs_excel:
+        excel_filepath = "Sepsis_R01_LabFlow_2023-11-29.xlsx"
+        if not os.path.exists(excel_filepath):
+            print(f"\n✗ ERROR: Excel file not found: {excel_filepath}")
+            print("Please ensure the file is in the current directory.")
+            sys.exit(1)
+        lab_keys, flowsheet_row_keys = load_lab_flowsheet_keys(excel_filepath)
+    else:
+        print("\n=== Using dict-based keys for all data assets (Excel not needed) ===")
 
     # Determine which data assets to extract
     if args.data_asset == 'all':
