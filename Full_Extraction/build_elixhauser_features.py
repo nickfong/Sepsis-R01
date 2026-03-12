@@ -12,13 +12,13 @@ Build per-encounter Elixhauser comorbidity features using two validated mappings
     Source: Quan H, et al. Med Care 2005;43(11):1130-9
     Code lists from comorbidipy package (MIT license)
 
-POA Logic (per AHRQ methodology):
-  - POA-exempt categories: ANY diagnosis code counts regardless of POA status
-  - POA-dependent categories: only count if presentonadmission='Yes'
-    OR type IN ('Medical History', 'Problem List')
+Two variants per mapping (4 total):
+  - ALL-DX: counts ALL diagnosis codes regardless of POA status
+  - POA: POA-exempt categories always count; POA-dependent categories only
+    count if presentonadmission='Yes' OR type IN ('Medical History', 'Problem List')
 
 Weighted scores:
-  - Van Walraven et al. 2009 (Med Care 47(6):626-33) weights for both mappings
+  - Van Walraven et al. 2009 (Med Care 47(6):626-33) weights for all 4 variants
 
 Output: Filtered_Combined_2026-02-20/elixhauser_features.parquet (+ .csv)
 """
@@ -280,7 +280,7 @@ def main():
     )
 
     # =====================================================================
-    # AHRQ MAPPING (exact code match via merge)
+    # AHRQ MAPPING (exact code match via merge) — ALL-DX + POA variants
     # =====================================================================
     print("\n--- AHRQ Mapping (exact match) ---", flush=True)
     t2 = time.time()
@@ -288,32 +288,44 @@ def main():
     # Merge diagnosis records with AHRQ mapping on ICD code
     ahrq_matched = dx_df.merge(ahrq_map_df, on="icd_code", how="inner")
 
-    # Apply POA logic: keep if (POA-exempt) OR (POA-dependent AND poa_qualified)
-    ahrq_matched = ahrq_matched[
-        (~ahrq_matched["poa_dependent"]) | (ahrq_matched["poa_qualified"])
-    ]
-
-    # Merge CBVD_POA and CBVD_SQLA into single CBVD
+    # Merge CBVD_POA and CBVD_SQLA into single CBVD (applies to both variants)
     ahrq_matched["category"] = ahrq_matched["category"].replace(
         {"CBVD_POA": "CBVD", "CBVD_SQLA": "CBVD"}
     )
 
-    # Deduplicate to encounter × category
-    ahrq_long = ahrq_matched[["encounterkey", "category"]].drop_duplicates()
-    print(f"  Encounter-category pairs: {len(ahrq_long):,}", flush=True)
-    print(f"  Time: {time.time() - t2:.1f}s", flush=True)
+    # --- ALL-DX variant (no POA filter) ---
+    ahrq_all_long = ahrq_matched[["encounterkey", "category"]].drop_duplicates()
+    print(f"  ALL-DX encounter-category pairs: {len(ahrq_all_long):,}", flush=True)
 
-    # Pivot to wide format
-    ahrq_long["value"] = 1
-    ahrq_wide = ahrq_long.pivot_table(
+    ahrq_all_long = ahrq_all_long.copy()
+    ahrq_all_long["value"] = 1
+    ahrq_all_wide = ahrq_all_long.pivot_table(
         index="encounterkey", columns="category", values="value",
         aggfunc="max", fill_value=0,
     )
-    ahrq_wide.columns = [f"ahrq_{c.lower()}" for c in ahrq_wide.columns]
-    ahrq_wide = ahrq_wide.reset_index()
+    ahrq_all_wide.columns = [f"ahrq_all_{c.lower()}" for c in ahrq_all_wide.columns]
+    ahrq_all_wide = ahrq_all_wide.reset_index()
+
+    # --- POA variant (POA-exempt always count; POA-dependent need evidence) ---
+    ahrq_poa_matched = ahrq_matched[
+        (~ahrq_matched["poa_dependent"]) | (ahrq_matched["poa_qualified"])
+    ]
+    ahrq_poa_long = ahrq_poa_matched[["encounterkey", "category"]].drop_duplicates()
+    print(f"  POA   encounter-category pairs: {len(ahrq_poa_long):,}", flush=True)
+
+    ahrq_poa_long = ahrq_poa_long.copy()
+    ahrq_poa_long["value"] = 1
+    ahrq_poa_wide = ahrq_poa_long.pivot_table(
+        index="encounterkey", columns="category", values="value",
+        aggfunc="max", fill_value=0,
+    )
+    ahrq_poa_wide.columns = [f"ahrq_poa_{c.lower()}" for c in ahrq_poa_wide.columns]
+    ahrq_poa_wide = ahrq_poa_wide.reset_index()
+
+    print(f"  Time: {time.time() - t2:.1f}s", flush=True)
 
     # =====================================================================
-    # QUAN MAPPING (prefix match via DuckDB)
+    # QUAN MAPPING (prefix match via DuckDB) — ALL-DX + POA variants
     # =====================================================================
     print("\n--- Quan Mapping (prefix match) ---", flush=True)
     t3 = time.time()
@@ -322,86 +334,102 @@ def main():
     con.register("quan_prefixes", quan_map_df)
     con.register("dx_records", dx_df[["encounterkey", "icd_code", "poa_qualified"]])
 
-    quan_query = """
-    WITH matched AS (
-        SELECT DISTINCT
-            d.encounterkey,
-            q.quan_category,
-            q.poa_dependent,
-            d.poa_qualified
-        FROM dx_records d
-        INNER JOIN quan_prefixes q
-            ON d.icd_code LIKE (q.prefix || '%')
-    )
-    SELECT encounterkey, quan_category
-    FROM matched
-    WHERE NOT poa_dependent OR poa_qualified
+    # Base match query (shared by both variants)
+    quan_base_query = """
+    SELECT DISTINCT
+        d.encounterkey,
+        q.quan_category,
+        q.poa_dependent,
+        d.poa_qualified
+    FROM dx_records d
+    INNER JOIN quan_prefixes q
+        ON d.icd_code LIKE (q.prefix || '%')
     """
-    quan_long = con.execute(quan_query).fetchdf()
-    quan_long = quan_long.drop_duplicates()
-    print(f"  Encounter-category pairs: {len(quan_long):,}", flush=True)
-    print(f"  Time: {time.time() - t3:.1f}s", flush=True)
 
-    # Pivot to wide format
-    quan_long["value"] = 1
-    quan_wide = quan_long.pivot_table(
+    # --- ALL-DX variant (no POA filter) ---
+    quan_all_query = f"""
+    WITH matched AS ({quan_base_query})
+    SELECT DISTINCT encounterkey, quan_category FROM matched
+    """
+    quan_all_long = con.execute(quan_all_query).fetchdf()
+    print(f"  ALL-DX encounter-category pairs: {len(quan_all_long):,}", flush=True)
+
+    quan_all_long["value"] = 1
+    quan_all_wide = quan_all_long.pivot_table(
         index="encounterkey", columns="quan_category", values="value",
         aggfunc="max", fill_value=0,
     )
-    quan_wide.columns = [f"quan_{c}" for c in quan_wide.columns]
-    quan_wide = quan_wide.reset_index()
+    quan_all_wide.columns = [f"quan_all_{c}" for c in quan_all_wide.columns]
+    quan_all_wide = quan_all_wide.reset_index()
+
+    # --- POA variant (POA-exempt always count; POA-dependent need evidence) ---
+    quan_poa_query = f"""
+    WITH matched AS ({quan_base_query})
+    SELECT DISTINCT encounterkey, quan_category
+    FROM matched
+    WHERE NOT poa_dependent OR poa_qualified
+    """
+    quan_poa_long = con.execute(quan_poa_query).fetchdf()
+    print(f"  POA   encounter-category pairs: {len(quan_poa_long):,}", flush=True)
+
+    quan_poa_long["value"] = 1
+    quan_poa_wide = quan_poa_long.pivot_table(
+        index="encounterkey", columns="quan_category", values="value",
+        aggfunc="max", fill_value=0,
+    )
+    quan_poa_wide.columns = [f"quan_poa_{c}" for c in quan_poa_wide.columns]
+    quan_poa_wide = quan_poa_wide.reset_index()
+
+    print(f"  Time: {time.time() - t3:.1f}s", flush=True)
 
     # =====================================================================
-    # MERGE AND COMPUTE SCORES
+    # MERGE AND COMPUTE SCORES (4 variants)
     # =====================================================================
     print("\n--- Merging and computing scores ---", flush=True)
 
     # Get full cohort
     all_encounters = con.execute("SELECT encounterkey FROM cohort").fetchdf()
 
-    # Merge AHRQ
-    result = all_encounters.merge(ahrq_wide, on="encounterkey", how="left")
-    ahrq_cols = [c for c in result.columns if c.startswith("ahrq_")]
-    result[ahrq_cols] = result[ahrq_cols].fillna(0).astype("int8")
+    # Merge all 4 wide DataFrames
+    result = all_encounters
+    for wide_df in [ahrq_all_wide, ahrq_poa_wide, quan_all_wide, quan_poa_wide]:
+        result = result.merge(wide_df, on="encounterkey", how="left")
 
-    # Merge Quan
-    result = result.merge(quan_wide, on="encounterkey", how="left")
-    quan_cols = [c for c in result.columns if c.startswith("quan_")]
-    result[quan_cols] = result[quan_cols].fillna(0).astype("int8")
+    # Fill NaN with 0 and cast to int8 for all feature columns
+    feat_cols = [c for c in result.columns if c.startswith(("ahrq_", "quan_"))]
+    result[feat_cols] = result[feat_cols].fillna(0).astype("int8")
 
-    # Ensure all expected AHRQ columns exist
-    for cat in VW_WEIGHTS_AHRQ:
-        col = f"ahrq_{cat.lower()}"
-        if col not in result.columns:
-            result[col] = pd.array([0] * len(result), dtype="int8")
+    # Ensure all expected columns exist for each variant
+    for prefix, weights in [("ahrq_all_", VW_WEIGHTS_AHRQ), ("ahrq_poa_", VW_WEIGHTS_AHRQ)]:
+        for cat in weights:
+            col = f"{prefix}{cat.lower()}"
+            if col not in result.columns:
+                result[col] = pd.array([0] * len(result), dtype="int8")
+    for prefix in ["quan_all_", "quan_poa_"]:
+        for cat in QUAN_ICD10_MAPPING:
+            col = f"{prefix}{cat}"
+            if col not in result.columns:
+                result[col] = pd.array([0] * len(result), dtype="int8")
 
-    # Ensure all expected Quan columns exist
-    for cat in QUAN_ICD10_MAPPING:
-        col = f"quan_{cat}"
-        if col not in result.columns:
-            result[col] = pd.array([0] * len(result), dtype="int8")
+    # --- Van Walraven scores and counts for all 4 variants ---
+    for prefix, weights, is_ahrq in [
+        ("ahrq_all_", VW_WEIGHTS_AHRQ, True),
+        ("ahrq_poa_", VW_WEIGHTS_AHRQ, True),
+        ("quan_all_", VW_WEIGHTS_QUAN, False),
+        ("quan_poa_", VW_WEIGHTS_QUAN, False),
+    ]:
+        # VW weighted score
+        score = pd.Series(0, index=result.index, dtype="int16")
+        for cat, weight in weights.items():
+            col = f"{prefix}{cat.lower() if is_ahrq else cat}"
+            if weight != 0 and col in result.columns:
+                score += result[col].astype("int16") * weight
+        result[f"{prefix}vw_score"] = score
 
-    # Compute van Walraven weighted score (AHRQ) — vectorized
-    ahrq_score = pd.Series(0, index=result.index, dtype="int16")
-    for cat, weight in VW_WEIGHTS_AHRQ.items():
-        col = f"ahrq_{cat.lower()}"
-        if weight != 0 and col in result.columns:
-            ahrq_score += result[col].astype("int16") * weight
-    result["ahrq_vw_score"] = ahrq_score
-
-    # Compute van Walraven weighted score (Quan) — vectorized
-    quan_score = pd.Series(0, index=result.index, dtype="int16")
-    for cat, weight in VW_WEIGHTS_QUAN.items():
-        col = f"quan_{cat}"
-        if weight != 0 and col in result.columns:
-            quan_score += result[col].astype("int16") * weight
-    result["quan_vw_score"] = quan_score
-
-    # Count of comorbidities
-    ahrq_cols_final = sorted([c for c in result.columns if c.startswith("ahrq_") and c != "ahrq_vw_score"])
-    quan_cols_final = sorted([c for c in result.columns if c.startswith("quan_") and c != "quan_vw_score"])
-    result["ahrq_count"] = result[ahrq_cols_final].sum(axis=1).astype("int8")
-    result["quan_count"] = result[quan_cols_final].sum(axis=1).astype("int8")
+        # Comorbidity count
+        cat_cols = sorted([c for c in result.columns
+                           if c.startswith(prefix) and not c.endswith("_vw_score")])
+        result[f"{prefix}count"] = result[cat_cols].sum(axis=1).astype("int8")
 
     # =====================================================================
     # SUMMARY
@@ -410,28 +438,26 @@ def main():
     print("RESULTS", flush=True)
     print(f"{'=' * 70}", flush=True)
     print(f"Total encounters: {len(result):,}", flush=True)
+    print(f"Output shape: {result.shape}", flush=True)
 
-    print(f"\n--- AHRQ Elixhauser ({len(ahrq_cols_final)} categories) ---", flush=True)
-    ahrq_prev = result[ahrq_cols_final].sum().sort_values(ascending=False)
-    n_with_any_ahrq = (result[ahrq_cols_final].sum(axis=1) > 0).sum()
-    print(f"Encounters with >=1 AHRQ comorbidity: {n_with_any_ahrq:,} ({n_with_any_ahrq / len(result):.1%})", flush=True)
-    print(f"Mean AHRQ comorbidities per encounter: {result['ahrq_count'].mean():.1f}", flush=True)
-    print(f"Mean AHRQ VW score: {result['ahrq_vw_score'].mean():.1f}", flush=True)
-    print(f"\nTop 10 AHRQ categories:", flush=True)
-    for cat in ahrq_prev.head(10).index:
-        n = int(ahrq_prev[cat])
-        print(f"  {cat}: {n:,} ({n / len(result):.1%})", flush=True)
-
-    print(f"\n--- Quan Elixhauser ({len(quan_cols_final)} categories) ---", flush=True)
-    quan_prev = result[quan_cols_final].sum().sort_values(ascending=False)
-    n_with_any_quan = (result[quan_cols_final].sum(axis=1) > 0).sum()
-    print(f"Encounters with >=1 Quan comorbidity: {n_with_any_quan:,} ({n_with_any_quan / len(result):.1%})", flush=True)
-    print(f"Mean Quan comorbidities per encounter: {result['quan_count'].mean():.1f}", flush=True)
-    print(f"Mean Quan VW score: {result['quan_vw_score'].mean():.1f}", flush=True)
-    print(f"\nTop 10 Quan categories:", flush=True)
-    for cat in quan_prev.head(10).index:
-        n = int(quan_prev[cat])
-        print(f"  {cat}: {n:,} ({n / len(result):.1%})", flush=True)
+    for label, prefix in [
+        ("AHRQ ALL-DX", "ahrq_all_"),
+        ("AHRQ POA", "ahrq_poa_"),
+        ("Quan ALL-DX", "quan_all_"),
+        ("Quan POA", "quan_poa_"),
+    ]:
+        cat_cols = sorted([c for c in result.columns
+                           if c.startswith(prefix) and not c.endswith(("_vw_score", "_count"))])
+        prev = result[cat_cols].sum().sort_values(ascending=False)
+        n_any = (result[cat_cols].sum(axis=1) > 0).sum()
+        print(f"\n--- {label} ({len(cat_cols)} categories) ---", flush=True)
+        print(f"Encounters with >=1 comorbidity: {n_any:,} ({n_any / len(result):.1%})", flush=True)
+        print(f"Mean comorbidities: {result[f'{prefix}count'].mean():.1f}", flush=True)
+        print(f"Mean VW score: {result[f'{prefix}vw_score'].mean():.1f}", flush=True)
+        print(f"Top 10:", flush=True)
+        for cat in prev.head(10).index:
+            n = int(prev[cat])
+            print(f"  {cat}: {n:,} ({n / len(result):.1%})", flush=True)
 
     # =====================================================================
     # SAVE
